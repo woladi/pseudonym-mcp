@@ -9,7 +9,7 @@ export interface Config {
   ollamaModel: string
   ollamaBaseUrl: string
   autoUnmask: boolean
-  peselStrictChecksum: boolean
+  strictValidation: boolean
 }
 
 export interface CliArgs {
@@ -19,16 +19,16 @@ export interface CliArgs {
   ollamaBaseUrl?: string
   config?: string
   autoUnmask?: boolean
-  peselStrictChecksum?: boolean
+  strictValidation?: boolean
 }
 
 const DEFAULTS: Config = {
-  lang: 'pl',
+  lang: 'en',
   engines: 'hybrid',
   ollamaModel: 'llama3',
   ollamaBaseUrl: 'http://localhost:11434',
   autoUnmask: false,
-  peselStrictChecksum: true,
+  strictValidation: true,
 }
 
 /**
@@ -70,8 +70,8 @@ export class ConfigManager {
     if (cliArgs.ollamaModel !== undefined) cfg.ollamaModel = cliArgs.ollamaModel
     if (cliArgs.ollamaBaseUrl !== undefined) cfg.ollamaBaseUrl = cliArgs.ollamaBaseUrl
     if (cliArgs.autoUnmask !== undefined) cfg.autoUnmask = cliArgs.autoUnmask
-    if (cliArgs.peselStrictChecksum !== undefined)
-      cfg.peselStrictChecksum = cliArgs.peselStrictChecksum
+    if (cliArgs.strictValidation !== undefined)
+      cfg.strictValidation = cliArgs.strictValidation
 
     this.config = cfg
   }

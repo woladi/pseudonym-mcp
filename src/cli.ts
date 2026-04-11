@@ -14,7 +14,7 @@ program
     'MCP server that pseudonymizes sensitive data locally before it reaches a cloud LLM'
   )
   .version('0.1.0')
-  .option('--lang <lang>', 'Language for regex rules', 'pl')
+  .option('--lang <lang>', 'Language for regex rules: en | pl', 'en')
   .option(
     '--engines <mode>',
     'Processing engines: regex | llm | hybrid',

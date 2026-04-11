@@ -15,7 +15,7 @@ beforeEach(() => {
 
 describe('Polish compliance — full round-trip', () => {
   it('masks PESEL, PERSON and ORG then restores original text', async () => {
-    ConfigManager.init({ lang: 'pl', engines: 'hybrid', peselStrictChecksum: true })
+    ConfigManager.init({ lang: 'pl', engines: 'hybrid', strictValidation: true })
 
     const input = `Jan Kowalski (PESEL: ${VALID_PESEL}) kupił auto od firmy Auto-Lux.`
 
@@ -45,7 +45,7 @@ describe('Polish compliance — full round-trip', () => {
   })
 
   it('does not mask an invalid PESEL when strictChecksum=true', async () => {
-    ConfigManager.init({ lang: 'pl', engines: 'hybrid', peselStrictChecksum: true })
+    ConfigManager.init({ lang: 'pl', engines: 'hybrid', strictValidation: true })
 
     const INVALID_PESEL = '90010112345' // wrong checksum digit
 
@@ -61,7 +61,7 @@ describe('Polish compliance — full round-trip', () => {
   })
 
   it('masks an invalid PESEL when strictChecksum=false', async () => {
-    ConfigManager.init({ lang: 'pl', engines: 'regex', peselStrictChecksum: false })
+    ConfigManager.init({ lang: 'pl', engines: 'regex', strictValidation: false })
 
     const INVALID_PESEL = '90010112345'
     const engine = new Engine(new MappingStore(), null)
@@ -124,7 +124,7 @@ describe('Polish compliance — full round-trip', () => {
   })
 
   it('gracefully degrades when Ollama throws', async () => {
-    ConfigManager.init({ lang: 'pl', engines: 'hybrid', peselStrictChecksum: true })
+    ConfigManager.init({ lang: 'pl', engines: 'hybrid', strictValidation: true })
 
     const mockOllamaClient = {
       extractEntities: async (): Promise<never> => {
@@ -139,7 +139,7 @@ describe('Polish compliance — full round-trip', () => {
   })
 
   it('same entity masked twice produces the same token (idempotency)', async () => {
-    ConfigManager.init({ lang: 'pl', engines: 'hybrid', peselStrictChecksum: true })
+    ConfigManager.init({ lang: 'pl', engines: 'hybrid', strictValidation: true })
 
     const mockOllamaClient = {
       extractEntities: async () => [

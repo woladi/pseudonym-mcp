@@ -2,9 +2,11 @@ import { MappingStore } from './mapping-store.js'
 import { OllamaClient, type OllamaEntity } from './ollama-client.js'
 import { ConfigManager } from '../config/manager.js'
 import type { LanguageRules } from '../languages/types.js'
+import { EnglishRules } from '../languages/en/rules.js'
 import { PolishRules } from '../languages/pl/rules.js'
 
 const LANGUAGE_MAP: Record<string, LanguageRules> = {
+  en: EnglishRules,
   pl: PolishRules,
 }
 
@@ -51,12 +53,12 @@ export class Engine {
    */
   async process(text: string): Promise<string> {
     const cfg = ConfigManager.getInstance().get()
-    const rules = LANGUAGE_MAP[cfg.lang] ?? PolishRules
+    const rules = LANGUAGE_MAP[cfg.lang] ?? EnglishRules
 
     let result = text
 
     if (cfg.engines === 'regex' || cfg.engines === 'hybrid') {
-      result = this.applyRegexRules(result, rules, cfg.peselStrictChecksum)
+      result = this.applyRegexRules(result, rules, cfg.strictValidation)
     }
 
     if (
@@ -72,7 +74,7 @@ export class Engine {
   private applyRegexRules(
     text: string,
     rules: LanguageRules,
-    strictChecksum: boolean
+    strictValidation: boolean
   ): string {
     let result = text
 
@@ -81,7 +83,7 @@ export class Engine {
       const regex = new RegExp(patternDef.regex.source, patternDef.regex.flags)
 
       result = result.replace(regex, (match) => {
-        if (patternDef.validate && strictChecksum) {
+        if (patternDef.validate && strictValidation) {
           const clean = match.replace(/\s/g, '')
           if (!patternDef.validate(clean)) return match
         }

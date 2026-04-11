@@ -1,8 +1,8 @@
 {
-  "lang": "pl",
+  "lang": "en",
   "engines": "hybrid",
   "ollamaModel": "llama3",
   "ollamaBaseUrl": "http://localhost:11434",
   "autoUnmask": false,
-  "peselStrictChecksum": true
+  "strictValidation": true
 }
