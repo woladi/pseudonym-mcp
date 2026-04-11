@@ -1,0 +1,57 @@
+{
+  "name": "pseudonym-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for privacy-preserving pseudonymization of sensitive data before cloud LLM processing",
+  "type": "module",
+  "bin": {
+    "pseudonym-mcp": "./dist/cli.js"
+  },
+  "main": "./dist/cli.js",
+  "types": "./dist/cli.d.ts",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest",
+    "test:coverage": "vitest --coverage",
+    "start": "node dist/cli.js",
+    "prepare": "npm run build"
+  },
+  "keywords": ["mcp", "privacy", "pseudonymization", "nlp", "claude", "gdpr", "pesel"],
+  "author": "Adrian Wolczuk",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "commander": "^14.0.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@release-it/conventional-changelog": "^10.0.0",
+    "@types/node": "^22.0.0",
+    "@vitest/coverage-v8": "^3.0.0",
+    "release-it": "^19.0.0",
+    "typescript": "^5.8.0",
+    "vitest": "^3.0.0"
+  },
+  "release-it": {
+    "$schema": "https://unpkg.com/release-it/schema/release-it.json",
+    "git": {
+      "commitMessage": "chore: release v${version}",
+      "tagName": "v${version}"
+    },
+    "npm": {
+      "publish": true
+    },
+    "github": {
+      "release": true,
+      "releaseName": "v${version}"
+    },
+    "plugins": {
+      "@release-it/conventional-changelog": {
+        "preset": "conventionalcommits",
+        "infile": "CHANGELOG.md"
+      }
+    }
+  }
+}
