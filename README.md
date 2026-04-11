@@ -197,10 +197,10 @@ The `session_id` keeps the token map alive for the entire session — the same `
 
 ## Quick Start
 
-**Step 1** — Install the package:
+**Step 1** — Add to your MCP client (example for Claude Code — no install needed):
 
 ```sh
-npm install -g pseudonym-mcp
+claude mcp add pseudonym-mcp -- npx -y pseudonym-mcp --engines hybrid
 ```
 
 **Step 2** — (Optional) Pull an Ollama model for full hybrid NER:
@@ -211,11 +211,7 @@ ollama pull llama3
 
 Skip this step if you only need regex-based masking (`--engines regex`).
 
-**Step 3** — Add to your MCP client (example for Claude Code):
-
-```sh
-claude mcp add pseudonym-mcp -- pseudonym-mcp --engines hybrid
-```
+> **Global install** — if you prefer `npm install -g pseudonym-mcp`, replace `npx -y pseudonym-mcp` with `pseudonym-mcp` in all snippets below.
 
 Restart your client. The `mask_text` and `unmask_text` tools appear automatically.
 
@@ -298,7 +294,7 @@ pseudonym-mcp --lang en --engines regex --ollama-model llama3 --auto-unmask
 ### Claude Code
 
 ```sh
-claude mcp add pseudonym-mcp -- pseudonym-mcp --engines hybrid
+claude mcp add pseudonym-mcp -- npx -y pseudonym-mcp --engines hybrid
 ```
 
 ### Claude Desktop
@@ -309,8 +305,8 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
 {
   "mcpServers": {
     "pseudonym-mcp": {
-      "command": "pseudonym-mcp",
-      "args": ["--engines", "hybrid"]
+      "command": "npx",
+      "args": ["-y", "pseudonym-mcp", "--engines", "hybrid"]
     }
   }
 }
@@ -324,8 +320,8 @@ Add to `~/.cursor/mcp.json`:
 {
   "mcpServers": {
     "pseudonym-mcp": {
-      "command": "pseudonym-mcp",
-      "args": ["--engines", "regex"]
+      "command": "npx",
+      "args": ["-y", "pseudonym-mcp", "--engines", "regex"]
     }
   }
 }
