@@ -140,6 +140,61 @@ Polish (--lang pl):
 
 The mapping is stored in a session-scoped in-memory store. Each `mask_text` call returns a `session_id`; pass it back to `unmask_text` to restore originals.
 
+## Real-world example
+
+### Meeting note in Claude Code / Obsidian
+
+You have a note:
+
+```
+Meeting with Jan Kowalski (PESEL: 90010112318) from Acme sp. z o.o.
+We discussed a contract for 45 000 zł. Contact: jan.kowalski@acme.pl
+```
+
+In Claude Code you type:
+
+```
+Use mask_text on this note, then summarize the key points of the meeting.
+```
+
+**pseudonym-mcp replaces PII locally before sending to Claude:**
+
+```
+Meeting with [PERSON:1] ([PESEL:1]) from [ORG:1].
+We discussed a contract for 45 000 zł. Contact: [EMAIL:1]
+```
+
+**Claude responds (sees tokens only):**
+
+```
+Meeting with [PERSON:1] from [ORG:1] covered a contract
+for 45 000 zł. Follow up via [EMAIL:1].
+```
+
+**pseudonym-mcp restores originals locally:**
+
+```
+Meeting with Jan Kowalski from Acme sp. z o.o. covered
+a contract for 45 000 zł. Follow up via jan.kowalski@acme.pl
+```
+
+Anthropic / OpenAI never saw any real data. The entire swap happens on your machine.
+
+### Obsidian vault with `session_id`
+
+```
+# mask the entire vault once — save the session_id
+Use mask_text on my notes — remember the session_id
+
+# ask Claude anything across multiple prompts
+Summarize all meetings from Q1
+
+# Claude replies with tokens; restore originals
+Use unmask_text with session_id abc123 on the response
+```
+
+The `session_id` keeps the token map alive for the entire session — the same `[PERSON:1]` always refers to the same person, no matter how many times they appear across different notes.
+
 ## Quick Start
 
 **Step 1** — Install the package:
