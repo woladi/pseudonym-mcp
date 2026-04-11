@@ -8,6 +8,12 @@
   },
   "main": "./dist/cli.js",
   "types": "./dist/cli.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/cli.js",
+      "types": "./dist/cli.d.ts"
+    }
+  },
   "engines": {
     "node": ">=18.0.0"
   },
@@ -19,9 +25,47 @@
     "start": "node dist/cli.js",
     "prepare": "npm run build"
   },
-  "keywords": ["mcp", "privacy", "pseudonymization", "nlp", "claude", "gdpr", "pesel"],
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "privacy",
+    "pseudonymization",
+    "anonymization",
+    "pii",
+    "pii-masking",
+    "pii-redaction",
+    "nlp",
+    "ner",
+    "named-entity-recognition",
+    "gdpr",
+    "gdpr-compliance",
+    "rodo",
+    "ai-privacy",
+    "llm-privacy",
+    "data-minimisation",
+    "privacy-by-design",
+    "pesel",
+    "iban",
+    "ollama",
+    "claude",
+    "zero-trust"
+  ],
   "author": "Adrian Wolczuk",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/woladi/pseudonym-mcp.git"
+  },
+  "homepage": "https://github.com/woladi/pseudonym-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/woladi/pseudonym-mcp/issues"
+  },
+  "files": [
+    "dist/",
+    "mcp-config.json",
+    "README.md",
+    "LICENSE"
+  ],
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
     "commander": "^14.0.0",
