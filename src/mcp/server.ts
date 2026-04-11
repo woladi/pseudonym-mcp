@@ -39,7 +39,7 @@ the original values later using unmask_text.`,
         .string()
         .optional()
         .describe(
-          'Optional: reuse an existing session to preserve token numbering across multiple calls'
+          'Optional: reuse an existing session to preserve token numbering across multiple calls',
         ),
     },
     async ({ text, session_id }) => {
@@ -69,12 +69,12 @@ the original values later using unmask_text.`,
                 auto_unmask: cfg.autoUnmask,
               },
               null,
-              2
+              2,
             ),
           },
         ],
       }
-    }
+    },
   )
 
   server.tool(
@@ -105,7 +105,7 @@ in the session identified by session_id.`,
       return {
         content: [{ type: 'text' as const, text: restored }],
       }
-    }
+    },
   )
 
   return server

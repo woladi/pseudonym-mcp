@@ -10,7 +10,7 @@ export interface OllamaCheckResult {
 export async function checkOllama(
   baseUrl: string,
   model: string,
-  timeoutMs = 3_000
+  timeoutMs = 3_000,
 ): Promise<OllamaCheckResult> {
   // Step 1: Check reachability
   let tagsRes: Response
@@ -39,9 +39,7 @@ export async function checkOllama(
   try {
     const data = (await tagsRes.json()) as { models?: Array<{ name: string }> }
     const models = data.models ?? []
-    const modelAvailable = models.some(
-      (m) => m.name === model || m.name.startsWith(`${model}:`)
-    )
+    const modelAvailable = models.some((m) => m.name === model || m.name.startsWith(`${model}:`))
     return { running: true, modelAvailable }
   } catch {
     return { running: true, modelAvailable: false }
@@ -52,10 +50,7 @@ export async function checkOllama(
  * Print a user-friendly warning to stderr if Ollama is unavailable or
  * the required model is missing. Never throws — errors are non-fatal.
  */
-export async function printOllamaStatus(
-  baseUrl: string,
-  model: string
-): Promise<void> {
+export async function printOllamaStatus(baseUrl: string, model: string): Promise<void> {
   const result = await checkOllama(baseUrl, model)
 
   if (!result.running) {
@@ -64,7 +59,7 @@ export async function printOllamaStatus(
         `  Install Ollama: https://ollama.com/download\n` +
         `  Then start it: ollama serve\n` +
         `  The LLM NER phase will be skipped until Ollama is available.\n` +
-        `  Use --engines regex to suppress this warning.\n\n`
+        `  Use --engines regex to suppress this warning.\n\n`,
     )
     return
   }
@@ -73,7 +68,7 @@ export async function printOllamaStatus(
     process.stderr.write(
       `\n[pseudonym-mcp] WARNING: Model "${model}" not found in Ollama.\n` +
         `  Pull it with: ollama pull ${model}\n` +
-        `  The LLM NER phase will fail gracefully until the model is available.\n\n`
+        `  The LLM NER phase will fail gracefully until the model is available.\n\n`,
     )
   }
 }

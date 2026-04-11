@@ -70,8 +70,7 @@ export class ConfigManager {
     if (cliArgs.ollamaModel !== undefined) cfg.ollamaModel = cliArgs.ollamaModel
     if (cliArgs.ollamaBaseUrl !== undefined) cfg.ollamaBaseUrl = cliArgs.ollamaBaseUrl
     if (cliArgs.autoUnmask !== undefined) cfg.autoUnmask = cliArgs.autoUnmask
-    if (cliArgs.strictValidation !== undefined)
-      cfg.strictValidation = cliArgs.strictValidation
+    if (cliArgs.strictValidation !== undefined) cfg.strictValidation = cliArgs.strictValidation
 
     this.config = cfg
   }

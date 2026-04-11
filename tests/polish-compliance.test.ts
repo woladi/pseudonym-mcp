@@ -142,9 +142,7 @@ describe('Polish compliance — full round-trip', () => {
     ConfigManager.init({ lang: 'pl', engines: 'hybrid', strictValidation: true })
 
     const mockOllamaClient = {
-      extractEntities: async () => [
-        { type: 'PERSON' as const, value: 'Anna Nowak' },
-      ],
+      extractEntities: async () => [{ type: 'PERSON' as const, value: 'Anna Nowak' }],
     } as unknown as OllamaClient
 
     const engine = new Engine(new MappingStore(), mockOllamaClient)

@@ -21,10 +21,7 @@ export class Engine {
   private readonly store: MappingStore
   private readonly ollamaClient: OllamaClient | null
 
-  constructor(
-    store?: MappingStore,
-    ollamaClientOverride?: OllamaClient | null
-  ) {
+  constructor(store?: MappingStore, ollamaClientOverride?: OllamaClient | null) {
     this.store = store ?? new MappingStore()
 
     if (ollamaClientOverride !== undefined) {
@@ -61,21 +58,14 @@ export class Engine {
       result = this.applyRegexRules(result, rules, cfg.strictValidation)
     }
 
-    if (
-      (cfg.engines === 'llm' || cfg.engines === 'hybrid') &&
-      this.ollamaClient !== null
-    ) {
+    if ((cfg.engines === 'llm' || cfg.engines === 'hybrid') && this.ollamaClient !== null) {
       result = await this.applyLlmNer(result)
     }
 
     return result
   }
 
-  private applyRegexRules(
-    text: string,
-    rules: LanguageRules,
-    strictValidation: boolean
-  ): string {
+  private applyRegexRules(text: string, rules: LanguageRules, strictValidation: boolean): string {
     let result = text
 
     for (const patternDef of rules.patterns) {
@@ -100,7 +90,7 @@ export class Engine {
       entities = await this.ollamaClient!.extractEntities(text)
     } catch (err) {
       process.stderr.write(
-        `[pseudonym-mcp] Ollama NER failed (skipping LLM phase): ${String(err)}\n`
+        `[pseudonym-mcp] Ollama NER failed (skipping LLM phase): ${String(err)}\n`,
       )
       return text
     }

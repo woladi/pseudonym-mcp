@@ -80,7 +80,7 @@ export class OllamaClient {
         ((e as Record<string, unknown>).type === 'PERSON' ||
           (e as Record<string, unknown>).type === 'ORG') &&
         typeof (e as Record<string, unknown>).value === 'string' &&
-        ((e as Record<string, unknown>).value as string).trim().length > 0
+        ((e as Record<string, unknown>).value as string).trim().length > 0,
     )
   }
 }

@@ -37,7 +37,7 @@ Sits between your application and any cloud LLM (Claude, GPT-4, Gemini…). Repl
 - The same prompt becomes `"[PERSON:1], SSN [SSN:1], card [CREDIT_CARD:1]"` before it leaves your machine
 - The LLM reasons about the structure and content without ever seeing the real values
 - The response is automatically de-tokenized locally before reaching the user
-- Your GDPR DPA can truthfully state: *personal data never left the local environment*
+- Your GDPR DPA can truthfully state: _personal data never left the local environment_
 
 ## GDPR & AI Compliance
 
@@ -47,13 +47,13 @@ pseudonym-mcp directly addresses the regulatory challenges of using cloud AI in 
 
 The EU **General Data Protection Regulation (GDPR)** classifies names, national ID numbers (like SSN or PESEL), bank account numbers (IBAN), email addresses, credit card numbers, and phone numbers as **personal data** under Article 4(1). Sending this data to a cloud LLM provider constitutes **processing** under Article 4(2) and triggers a range of obligations:
 
-| GDPR Article | Obligation | How pseudonym-mcp helps |
-|---|---|---|
-| Art. 5(1)(c) | **Data minimisation** — only necessary data should be processed | Strips PII before transmission; the LLM receives only what it needs to reason |
-| Art. 25 | **Privacy by design and by default** | Pseudonymization layer is built into the MCP transport, not bolted on |
-| Art. 32 | **Security of processing** — appropriate technical measures | Local token substitution is a recognized technical measure under Recital 83 |
-| Art. 44 | **Transfers to third countries** — requires safeguards | If no personal data is transferred, Art. 44 restrictions do not apply |
-| Art. 4(5) | **Pseudonymisation** — explicitly recognized as a protective measure | Tokens are opaque; re-identification requires access to the local mapping store |
+| GDPR Article | Obligation                                                           | How pseudonym-mcp helps                                                         |
+| ------------ | -------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| Art. 5(1)(c) | **Data minimisation** — only necessary data should be processed      | Strips PII before transmission; the LLM receives only what it needs to reason   |
+| Art. 25      | **Privacy by design and by default**                                 | Pseudonymization layer is built into the MCP transport, not bolted on           |
+| Art. 32      | **Security of processing** — appropriate technical measures          | Local token substitution is a recognized technical measure under Recital 83     |
+| Art. 44      | **Transfers to third countries** — requires safeguards               | If no personal data is transferred, Art. 44 restrictions do not apply           |
+| Art. 4(5)    | **Pseudonymisation** — explicitly recognized as a protective measure | Tokens are opaque; re-identification requires access to the local mapping store |
 
 > **Note:** Pseudonymisation under GDPR (Art. 4(5)) does not equal anonymisation — the data is still personal data in your system. However, it substantially reduces risk and demonstrates compliance with the accountability principle (Art. 5(2)).
 
@@ -77,15 +77,15 @@ While GDPR originates in the EU, pseudonym-mcp is equally relevant for:
 
 ### Sector-specific applicability
 
-| Sector | Relevant regulation | PII types commonly handled |
-|---|---|---|
-| Healthcare | GDPR + HIPAA + national health data laws | Patient names, SSN, diagnoses |
-| Banking & Finance | GDPR + PCI DSS + PSD2 + DORA | Credit cards, IBAN, SSN, PESEL |
-| HR & Recruitment | GDPR Art. 9 (special categories) | Names, national IDs, contact details |
-| Legal | GDPR + attorney-client privilege | Names, case numbers, personal details |
-| Insurance | GDPR + Solvency II | Personal identifiers, health data |
-| Public Sector (US) | CCPA + state privacy laws | SSN, driver's license numbers |
-| Public Sector (PL) | GDPR + UODO + KRI | PESEL, NIP, REGON |
+| Sector             | Relevant regulation                      | PII types commonly handled            |
+| ------------------ | ---------------------------------------- | ------------------------------------- |
+| Healthcare         | GDPR + HIPAA + national health data laws | Patient names, SSN, diagnoses         |
+| Banking & Finance  | GDPR + PCI DSS + PSD2 + DORA             | Credit cards, IBAN, SSN, PESEL        |
+| HR & Recruitment   | GDPR Art. 9 (special categories)         | Names, national IDs, contact details  |
+| Legal              | GDPR + attorney-client privilege         | Names, case numbers, personal details |
+| Insurance          | GDPR + Solvency II                       | Personal identifiers, health data     |
+| Public Sector (US) | CCPA + state privacy laws                | SSN, driver's license numbers         |
+| Public Sector (PL) | GDPR + UODO + KRI                        | PESEL, NIP, REGON                     |
 
 ## How it works
 
@@ -166,10 +166,10 @@ Restart your client. The `mask_text` and `unmask_text` tools appear automaticall
 
 ## Available Tools
 
-| Tool | What it does | Example prompt |
-|---|---|---|
-| `mask_text` | Pseudonymize PII in text. Returns `masked_text` + `session_id`. | *"Use mask_text on this customer letter before summarizing it"* |
-| `unmask_text` | Restore original values from a session. Pass the `session_id` returned by `mask_text`. | *"Use unmask_text with session_id X to restore the response"* |
+| Tool          | What it does                                                                           | Example prompt                                                  |
+| ------------- | -------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| `mask_text`   | Pseudonymize PII in text. Returns `masked_text` + `session_id`.                        | _"Use mask_text on this customer letter before summarizing it"_ |
+| `unmask_text` | Restore original values from a session. Pass the `session_id` returned by `mask_text`. | _"Use unmask_text with session_id X to restore the response"_   |
 
 ### `mask_text` input
 
@@ -214,14 +214,14 @@ Restart your client. The `mask_text` and `unmask_text` tools appear automaticall
 }
 ```
 
-| Key | Values | Default | Description |
-|---|---|---|---|
-| `lang` | `en`, `pl` | `en` | Language pack for regex rules |
-| `engines` | `regex` \| `llm` \| `hybrid` | `hybrid` | Which NER engines to run |
-| `ollamaModel` | any Ollama model name | `llama3` | Local LLM for entity detection |
-| `ollamaBaseUrl` | URL | `http://localhost:11434` | Ollama API endpoint |
-| `autoUnmask` | `true` \| `false` | `false` | Auto-restore tokens in LLM responses |
-| `strictValidation` | `true` \| `false` | `true` | Enable checksum / format validation (SSN area check, Luhn for cards, PESEL checksum) |
+| Key                | Values                       | Default                  | Description                                                                          |
+| ------------------ | ---------------------------- | ------------------------ | ------------------------------------------------------------------------------------ |
+| `lang`             | `en`, `pl`                   | `en`                     | Language pack for regex rules                                                        |
+| `engines`          | `regex` \| `llm` \| `hybrid` | `hybrid`                 | Which NER engines to run                                                             |
+| `ollamaModel`      | any Ollama model name        | `llama3`                 | Local LLM for entity detection                                                       |
+| `ollamaBaseUrl`    | URL                          | `http://localhost:11434` | Ollama API endpoint                                                                  |
+| `autoUnmask`       | `true` \| `false`            | `false`                  | Auto-restore tokens in LLM responses                                                 |
+| `strictValidation` | `true` \| `false`            | `true`                   | Enable checksum / format validation (SSN area check, Luhn for cards, PESEL checksum) |
 
 ### CLI flags
 
@@ -231,14 +231,14 @@ All config keys can be overridden at startup (highest priority):
 pseudonym-mcp --lang en --engines regex --ollama-model llama3 --auto-unmask
 ```
 
-| Flag | Description |
-|---|---|
-| `--lang` | Language for regex rules: `en` or `pl` (default: `en`) |
-| `--engines` | `regex`, `llm`, or `hybrid` (default: `hybrid`) |
-| `--ollama-model` | Ollama model to use for NER |
-| `--ollama-base-url` | Ollama base URL |
-| `--config` | Path to a custom JSON config file |
-| `--auto-unmask` | Enable automatic response de-tokenization |
+| Flag                | Description                                            |
+| ------------------- | ------------------------------------------------------ |
+| `--lang`            | Language for regex rules: `en` or `pl` (default: `en`) |
+| `--engines`         | `regex`, `llm`, or `hybrid` (default: `hybrid`)        |
+| `--ollama-model`    | Ollama model to use for NER                            |
+| `--ollama-base-url` | Ollama base URL                                        |
+| `--config`          | Path to a custom JSON config file                      |
+| `--auto-unmask`     | Enable automatic response de-tokenization              |
 
 ### Claude Code
 
@@ -280,33 +280,33 @@ Add to `~/.cursor/mcp.json`:
 
 ### English (`--lang en`, default)
 
-| Tag | Pattern | Validation |
-|---|---|---|
-| `SSN` | `XXX-XX-XXXX` (US Social Security Number) | Area number check (rejects 000, 666, 900+) |
-| `CREDIT_CARD` | 13–19 digits (Visa, Mastercard, Amex, Discover) | Luhn checksum |
-| `EMAIL` | RFC 5321-compatible | Format match |
-| `PHONE` | `+1 (XXX) XXX-XXXX`, `XXX-XXX-XXXX`, `XXX.XXX.XXXX` | Format match |
-| `PERSON` | Full names | Ollama NER (hybrid / llm engines) |
-| `ORG` | Company / organization names | Ollama NER (hybrid / llm engines) |
+| Tag           | Pattern                                             | Validation                                 |
+| ------------- | --------------------------------------------------- | ------------------------------------------ |
+| `SSN`         | `XXX-XX-XXXX` (US Social Security Number)           | Area number check (rejects 000, 666, 900+) |
+| `CREDIT_CARD` | 13–19 digits (Visa, Mastercard, Amex, Discover)     | Luhn checksum                              |
+| `EMAIL`       | RFC 5321-compatible                                 | Format match                               |
+| `PHONE`       | `+1 (XXX) XXX-XXXX`, `XXX-XXX-XXXX`, `XXX.XXX.XXXX` | Format match                               |
+| `PERSON`      | Full names                                          | Ollama NER (hybrid / llm engines)          |
+| `ORG`         | Company / organization names                        | Ollama NER (hybrid / llm engines)          |
 
 ### Polish (`--lang pl`)
 
-| Tag | Pattern | Validation |
-|---|---|---|
-| `PESEL` | 11-digit national ID | Full checksum (weights `[1,3,7,9,1,3,7,9,1,3]`) |
-| `IBAN` | `PL` + 26 digits, compact or spaced | Format match |
-| `EMAIL` | RFC 5321-compatible | Format match |
-| `PHONE` | `+48` / `0048` prefix, 9-digit mobile, landline `(XX) XXX-XX-XX` | Format match |
-| `PERSON` | Full names | Ollama NER (hybrid / llm engines) |
-| `ORG` | Company / organization names | Ollama NER (hybrid / llm engines) |
+| Tag      | Pattern                                                          | Validation                                      |
+| -------- | ---------------------------------------------------------------- | ----------------------------------------------- |
+| `PESEL`  | 11-digit national ID                                             | Full checksum (weights `[1,3,7,9,1,3,7,9,1,3]`) |
+| `IBAN`   | `PL` + 26 digits, compact or spaced                              | Format match                                    |
+| `EMAIL`  | RFC 5321-compatible                                              | Format match                                    |
+| `PHONE`  | `+48` / `0048` prefix, 9-digit mobile, landline `(XX) XXX-XX-XX` | Format match                                    |
+| `PERSON` | Full names                                                       | Ollama NER (hybrid / llm engines)               |
+| `ORG`    | Company / organization names                                     | Ollama NER (hybrid / llm engines)               |
 
 ## Engine modes
 
-| Mode | Requires Ollama | Detects structured PII | Detects names / orgs |
-|---|---|---|---|
-| `regex` | No | Yes | No |
-| `llm` | Yes | No | Yes |
-| `hybrid` (default) | Yes (graceful fallback) | Yes | Yes |
+| Mode               | Requires Ollama         | Detects structured PII | Detects names / orgs |
+| ------------------ | ----------------------- | ---------------------- | -------------------- |
+| `regex`            | No                      | Yes                    | No                   |
+| `llm`              | Yes                     | No                     | Yes                  |
+| `hybrid` (default) | Yes (graceful fallback) | Yes                    | Yes                  |
 
 In `hybrid` mode, Ollama runs after the regex pass so the LLM never sees already-tokenized values. If Ollama is unreachable, the server logs a warning to stderr and returns the regex-only masked text — no crash, no hang.
 

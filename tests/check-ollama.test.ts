@@ -17,7 +17,7 @@ describe('checkOllama', () => {
   it('returns running=false when Ollama returns a non-ok status', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockResolvedValue({ ok: false, status: 503, json: async () => ({}) })
+      vi.fn().mockResolvedValue({ ok: false, status: 503, json: async () => ({}) }),
     )
     const result = await checkOllama('http://localhost:11434', 'llama3', 500)
     expect(result.running).toBe(false)
@@ -32,7 +32,7 @@ describe('checkOllama', () => {
         json: async () => ({
           models: [{ name: 'llama3' }, { name: 'mistral:latest' }],
         }),
-      })
+      }),
     )
     const result = await checkOllama('http://localhost:11434', 'llama3', 500)
     expect(result.running).toBe(true)
@@ -47,7 +47,7 @@ describe('checkOllama', () => {
         json: async () => ({
           models: [{ name: 'llama3:latest' }, { name: 'mistral:latest' }],
         }),
-      })
+      }),
     )
     const result = await checkOllama('http://localhost:11434', 'llama3', 500)
     expect(result.running).toBe(true)
@@ -60,7 +60,7 @@ describe('checkOllama', () => {
       vi.fn().mockResolvedValue({
         ok: true,
         json: async () => ({ models: [{ name: 'mistral:latest' }] }),
-      })
+      }),
     )
     const result = await checkOllama('http://localhost:11434', 'llama3', 500)
     expect(result.running).toBe(true)
