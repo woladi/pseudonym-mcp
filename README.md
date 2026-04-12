@@ -195,6 +195,41 @@ Use unmask_text with session_id abc123 on the response
 
 The `session_id` keeps the token map alive for the entire session — the same `[PERSON:1]` always refers to the same person, no matter how many times they appear across different notes.
 
+## MCP Prompt Templates
+
+pseudonym-mcp ships two built-in prompt templates that chain masking, an LLM task, and unmasking into a single workflow — no glue code needed.
+
+### `pseudonymize_task` — inline text
+
+```
+/pseudonymize_task text="Meeting with Jan Kowalski (PESEL: 90010112318). Contract: 45 000 zł." task="Extract action items"
+```
+
+What happens:
+
+1. pseudonym-mcp masks PII locally → `[PERSON:1]`, `[PESEL:1]`
+2. Claude processes the anonymized text
+3. pseudonym-mcp restores originals in the response
+
+Optional `lang` argument: `en` (default) or `pl`.
+
+### `privacy_scan_file` — file / PDF (macOS only)
+
+> **Requires [macos-vision-mcp](https://github.com/woladi/macos-vision-mcp)** — a separate MCP server that uses Apple's Vision framework to extract text from PDFs and images. macOS only.
+
+```
+/privacy_scan_file filePath="/Users/me/contracts/nda.pdf" task="Summarize obligations and deadlines"
+```
+
+What happens:
+
+1. macos-vision-mcp extracts text from the file
+2. pseudonym-mcp masks all PII locally
+3. Claude processes the anonymized content
+4. pseudonym-mcp restores originals before the response is shown
+
+Optional arguments: `task` (default: _summarize the key points_), `lang` (`en` or `pl`).
+
 ## Quick Start
 
 **Step 1** — Add to your MCP client (example for Claude Code — no install needed):

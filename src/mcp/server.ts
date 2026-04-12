@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { Engine } from '../core/engine.js'
 import { MappingStore } from '../core/mapping-store.js'
 import { ConfigManager } from '../config/manager.js'
+import { pseudonymizeTaskMessage, privacyScanFileMessage } from './prompts.js'
 
 // Session registry: session_id → Engine (each Engine holds its own MappingStore)
 const sessions = new Map<string, Engine>()
@@ -106,6 +107,56 @@ in the session identified by session_id.`,
         content: [{ type: 'text' as const, text: restored }],
       }
     },
+  )
+
+  server.registerPrompt(
+    'pseudonymize_task',
+    {
+      description: 'Mask PII in text, run a task, then restore originals — all locally',
+      argsSchema: {
+        text: z.string().describe('Text containing sensitive data'),
+        task: z.string().describe('What to do with the anonymized text'),
+        lang: z
+          .enum(['en', 'pl'])
+          .optional()
+          .describe('Language for PII detection (default: config lang)'),
+      },
+    },
+    ({ text, task, lang }) => ({
+      messages: [
+        {
+          role: 'user',
+          content: { type: 'text', text: pseudonymizeTaskMessage({ text, task, lang }) },
+        },
+      ],
+    }),
+  )
+
+  server.registerPrompt(
+    'privacy_scan_file',
+    {
+      description:
+        'Extract text from a file via macos-vision-mcp (macOS only), anonymize PII, process with the LLM, then restore originals',
+      argsSchema: {
+        filePath: z.string().describe('Path to the file to scan (PDF, image, etc.)'),
+        task: z
+          .string()
+          .optional()
+          .describe('What to do with the content (default: summarize the key points)'),
+        lang: z
+          .enum(['en', 'pl'])
+          .optional()
+          .describe('Language for PII detection (default: config lang)'),
+      },
+    },
+    ({ filePath, task, lang }) => ({
+      messages: [
+        {
+          role: 'user',
+          content: { type: 'text', text: privacyScanFileMessage({ filePath, task, lang }) },
+        },
+      ],
+    }),
   )
 
   return server
