@@ -13,7 +13,7 @@ Sits between your application and any cloud LLM (Claude, GPT-4, Gemini…). Repl
 
 ## What you get
 
-- **Multi-language PII detection**: Built-in support for English (SSN, credit cards, US phone) and Polish (PESEL, IBAN, Polish phone). Extensible to any language.
+- **Multi-language PII detection**: Built-in support for English (SSN, credit cards, US phone) and Polish (PESEL, IBAN, Polish phone). New **heuristic language detection** (`detectLanguage()`) infers the language from text content — `--lang` remains the authoritative override but is no longer the only input.
 - **Hybrid NER engine**: Regex for structured PII (SSN, credit cards, IBAN, email, phone) + local Ollama LLM for unstructured entities (names, organizations).
 - **Zero-trust architecture**: All detection and substitution happens on your machine. No PII reaches a third-party API.
 - **Session-keyed mapping store**: Tokens like `[PERSON:1]` map back to originals in an isolated, per-request session. Multiple round-trips preserve token coherence.
@@ -364,6 +364,16 @@ Add to `~/.cursor/mcp.json`:
 
 ## Supported PII types
 
+### Global (all languages)
+
+| Tag     | Pattern                              | Validation   |
+| ------- | ------------------------------------ | ------------ |
+| `EMAIL` | RFC 5321-compatible                  | Format match |
+| `IBAN`  | Generic IBAN (`CC` + 2 check + BBAN) | Format match |
+| `IP`    | IPv4 (all octets 0–255)              | Format match |
+| `URL`   | `http://` / `https://` URLs          | Format match |
+| `PHONE` | International `+CC` prefix format    | Format match |
+
 ### English (`--lang en`, default)
 
 | Tag           | Pattern                                             | Validation                                 |
@@ -372,19 +382,46 @@ Add to `~/.cursor/mcp.json`:
 | `CREDIT_CARD` | 13–19 digits (Visa, Mastercard, Amex, Discover)     | Luhn checksum                              |
 | `EMAIL`       | RFC 5321-compatible                                 | Format match                               |
 | `PHONE`       | `+1 (XXX) XXX-XXXX`, `XXX-XXX-XXXX`, `XXX.XXX.XXXX` | Format match                               |
+| `ZIP_CODE`    | `XXXXX` or `XXXXX-XXXX` (paranoid mode only)        | Format match                               |
 | `PERSON`      | Full names                                          | Ollama NER (hybrid / llm engines)          |
 | `ORG`         | Company / organization names                        | Ollama NER (hybrid / llm engines)          |
 
 ### Polish (`--lang pl`)
 
-| Tag      | Pattern                                                          | Validation                                      |
-| -------- | ---------------------------------------------------------------- | ----------------------------------------------- |
-| `PESEL`  | 11-digit national ID                                             | Full checksum (weights `[1,3,7,9,1,3,7,9,1,3]`) |
-| `IBAN`   | `PL` + 26 digits, compact or spaced                              | Format match                                    |
-| `EMAIL`  | RFC 5321-compatible                                              | Format match                                    |
-| `PHONE`  | `+48` / `0048` prefix, 9-digit mobile, landline `(XX) XXX-XX-XX` | Format match                                    |
-| `PERSON` | Full names                                                       | Ollama NER (hybrid / llm engines)               |
-| `ORG`    | Company / organization names                                     | Ollama NER (hybrid / llm engines)               |
+| Tag           | Pattern                                                          | Validation                                      |
+| ------------- | ---------------------------------------------------------------- | ----------------------------------------------- |
+| `PESEL`       | 11-digit national ID                                             | Full checksum (weights `[1,3,7,9,1,3,7,9,1,3]`) |
+| `IBAN`        | `PL` + 26 digits, compact or spaced                              | Format match                                    |
+| `EMAIL`       | RFC 5321-compatible                                              | Format match                                    |
+| `PHONE`       | `+48` / `0048` prefix, 9-digit mobile, landline `(XX) XXX-XX-XX` | Format match                                    |
+| `NIP`         | 10-digit tax ID (strict / paranoid modes)                        | Checksum (weights `[6,5,7,2,3,4,5,6,7]`)        |
+| `POSTAL_CODE` | `XX-XXX` (paranoid mode only)                                    | Format match                                    |
+| `PERSON`      | Full names                                                       | Ollama NER (hybrid / llm engines)               |
+| `ORG`         | Company / organization names                                     | Ollama NER (hybrid / llm engines)               |
+
+## Language Detection
+
+pseudonym-mcp includes a lightweight heuristic language detector based on [`franc`](https://github.com/wooorm/franc).
+It infers the language from text content and returns a structured result:
+
+```typescript
+detectLanguage('Umowa zostaje zawarta na czas nieokreślony')
+// → { detected: 'pl', source: 'text', raw: 'pol', confidence: 0.94 }
+
+detectLanguage('Hello')
+// → { detected: 'unknown', source: 'fallback', raw: null, confidence: null }
+```
+
+| Field        | Description                                                                            |
+| ------------ | -------------------------------------------------------------------------------------- |
+| `detected`   | `'pl'`, `'en'`, or `'unknown'`                                                         |
+| `source`     | `'text'` — franc ran and mapped successfully; `'fallback'` — too short or undetermined |
+| `raw`        | Raw ISO 639-3 code from franc (e.g. `'pol'`), or `null`                                |
+| `confidence` | Score 0–1 from franc, or `null` when franc was not called                              |
+
+Texts shorter than 20 characters or with low confidence return `detected: 'unknown'`.
+The detector does not affect the current pseudonymization pipeline — `--lang` config remains authoritative.
+It is a building block for future multi-language and auto-select modes.
 
 ## Engine modes
 
@@ -411,19 +448,20 @@ git clone https://github.com/woladi/pseudonym-mcp
 cd pseudonym-mcp
 npm install
 npm run build    # tsc compile
-npm test         # vitest (77 tests, no Ollama required)
+npm test         # vitest (134 tests, no Ollama required)
 ```
 
 The test suite runs fully offline — Ollama calls are injected via constructor and mocked in all tests. No live LLM required.
 
 ### Adding a new language pack
 
-1. Create `src/languages/<lang>/rules.ts`
-2. Export an object that implements `LanguageRules` from `src/languages/types.ts`
-3. Register it in the `LANGUAGE_MAP` in `src/core/engine.ts`
-4. Pass `--lang <lang>` at startup
+1. Add locale-specific patterns in `src/patterns/locale/<lang>/` — each file exports a `PatternRule` with `id`, `entityType`, `pattern`, `locales`, `engines`, and optional `validate`
+2. Register them in `src/patterns/index.ts` (add to `allPatterns` array)
+3. Create a thin adapter `src/languages/<lang>/rules.ts` that composes from the new patterns using `toPatternDef`
+4. Register the adapter in `LANGUAGE_MAP` in `src/core/engine.ts`
+5. Add the ISO 639-3 → short code mapping in `src/language/language-map.ts`
 
-Each language pack defines an array of `PatternDef` entries with a `tag`, `regex`, and optional `validate` callback. See `src/languages/en/rules.ts` and `src/languages/pl/rules.ts` for examples.
+See `src/patterns/locale/pl/` and `src/languages/pl/rules.ts` for a complete example.
 
 ## Contributing
 
