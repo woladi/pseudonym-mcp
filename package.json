@@ -108,7 +108,8 @@
     "$schema": "https://unpkg.com/release-it/schema/release-it.json",
     "git": {
       "commitMessage": "chore: release v${version}",
-      "tagName": "v${version}"
+      "tagName": "v${version}",
+      "push": false
     },
     "npm": {
       "publish": true
