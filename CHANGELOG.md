@@ -1,5 +1,7 @@
 # Changelog
 
+## [0.2.5](https://github.com/woladi/pseudonym-mcp/compare/v0.2.3...v0.2.5) (2026-04-12)
+
 ## [0.2.3](https://github.com/woladi/pseudonym-mcp/compare/v0.2.1...v0.2.3) (2026-04-12)
 
 ### Features
