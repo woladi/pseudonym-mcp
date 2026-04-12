@@ -1,0 +1,21 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.woladi/pseudonym-mcp",
+  "description": "Pseudonymizes sensitive data before it reaches cloud LLMs and restores it on the way back.",
+  "repository": {
+    "url": "https://github.com/woladi/pseudonym-mcp.git",
+    "source": "github"
+  },
+  "version": "0.2.4",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "pseudonym-mcp",
+      "version": "0.2.4",
+      "runtimeHint": "npx",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}

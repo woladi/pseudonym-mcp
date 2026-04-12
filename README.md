@@ -1,6 +1,6 @@
 # pseudonym-mcp
 
-Local privacy proxy for LLMs — pseudonymizes sensitive data before it reaches the cloud, restores it on the way back.
+Local privacy proxy for LLMs — pseudonymizes sensitive data before it reaches the cloud, then restores it on the way back.
 
 [![npm version](https://img.shields.io/npm/v/pseudonym-mcp?style=flat-square&logo=npm&logoColor=white)](https://www.npmjs.com/package/pseudonym-mcp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-ffd60a?style=flat-square)](LICENSE)

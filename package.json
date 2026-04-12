@@ -1,6 +1,7 @@
 {
   "name": "pseudonym-mcp",
-  "version": "0.2.3",
+  "version": "0.2.5",
+  "mcpName": "io.github.woladi/pseudonym-mcp",
   "description": "MCP server for privacy-preserving pseudonymization of sensitive data before cloud LLM processing",
   "type": "module",
   "bin": {
@@ -20,6 +21,7 @@
   "scripts": {
     "build": "tsc",
     "test": "vitest",
+    "test:run": "vitest run",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
     "lint": "eslint src tests",
