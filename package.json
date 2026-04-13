@@ -32,13 +32,8 @@
     "prepare": "husky"
   },
   "lint-staged": {
-    "*.ts": [
-      "eslint --fix",
-      "prettier --write"
-    ],
-    "*.{json,md}": [
-      "prettier --write"
-    ]
+    "*.ts": ["eslint --fix", "prettier --write"],
+    "*.{json,md}": ["prettier --write"]
   },
   "keywords": [
     "mcp",
@@ -75,12 +70,7 @@
   "bugs": {
     "url": "https://github.com/woladi/pseudonym-mcp/issues"
   },
-  "files": [
-    "dist/",
-    "mcp-config.json",
-    "README.md",
-    "LICENSE"
-  ],
+  "files": ["dist/", "mcp-config.json", "README.md", "LICENSE"],
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
     "commander": "^14.0.0",
