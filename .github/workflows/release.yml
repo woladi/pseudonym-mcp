@@ -40,6 +40,17 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
+      - name: Sync package.json version from latest git tag
+        run: |
+          LATEST=$(git tag --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -1)
+          if [ -n "$LATEST" ]; then
+            VERSION="${LATEST#v}"
+            echo "Syncing package.json to $VERSION (from tag $LATEST)"
+            npm version "$VERSION" --no-git-tag-version --allow-same-version
+          else
+            echo "No existing version tags found, keeping package.json version"
+          fi
+
       - name: Release
         run: npx release-it --ci
         env:
