@@ -441,6 +441,18 @@ In `hybrid` mode, Ollama runs after the regex pass so the LLM never sees already
 - **No model training.** The local Ollama model operates entirely offline. Your data is not used to train any model.
 - **Strict validation by default.** Invalid SSNs (area 000/666/900+), failed-Luhn credit card numbers, and invalid-checksum PESELs are not masked, preventing false positives from OCR errors or random digit sequences.
 
+## Limitations
+
+pseudonym-mcp is a technical privacy control, not a legal guarantee of compliance.
+
+- Detection is best-effort — false negatives and false positives are possible.
+- Indirect references (e.g. _"the tall guy from accounting"_) are not detected.
+- If plaintext is logged before being passed to `mask_text`, pseudonym-mcp cannot protect it.
+- The mapping store is process-local; restarting the server ends the session.
+- Re-identification is possible for anyone with access to the local mapping store — this is pseudonymization, not anonymization.
+
+> Under GDPR Art. 4(5), pseudonymized data is still personal data in your system. pseudonym-mcp substantially reduces risk but does not eliminate your legal obligations.
+
 ## Development
 
 ```sh
@@ -468,10 +480,6 @@ See `src/patterns/locale/pl/` and `src/languages/pl/rules.ts` for a complete exa
 Contributions are welcome. Please follow [Conventional Commits](https://www.conventionalcommits.org/) for commit messages — this project uses `release-it` with `@release-it/conventional-changelog` to automate releases.
 
 Language pack contributions are especially welcome — German (Personalausweis, Steuer-ID), French (NIR, SIRET), Spanish (DNI/NIE) and others would significantly expand the tool's usefulness.
-
-## Keyword index
-
-> For discoverability: **AI privacy**, **LLM data privacy**, **PII masking**, **PII redaction**, **PII detection**, **data pseudonymization**, **GDPR LLM compliance**, **GDPR AI**, **EU AI Act**, **CCPA compliance**, **HIPAA AI**, **PCI DSS tokenization**, **SOC 2 data handling**, **personal data protection**, **sensitive data scrubbing**, **NER anonymization**, **named entity recognition privacy**, **Claude privacy layer**, **MCP privacy proxy**, **local AI processing**, **on-premise AI**, **zero-trust AI**, **data minimisation**, **privacy by design**, **SSN masking**, **credit card masking**, **Luhn validation**, **PESEL masking**, **Polish PII**, **RODO**, **UODO compliance**, **healthcare AI privacy**, **financial data redaction**, **PSD2 privacy**, **tokenization NLP**, **prompt sanitization**, **context window privacy**, **offline NER**, **Ollama privacy**, **local LLM privacy**, **cross-border data transfer**, **data protection by design**, **PIPEDA**, **LGPD**, **POPIA**.
 
 ## License
 
