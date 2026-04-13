@@ -99,7 +99,8 @@
     "git": {
       "commitMessage": "chore: release v${version}",
       "tagName": "v${version}",
-      "push": false
+      "push": false,
+      "requireCleanWorkingDir": false
     },
     "npm": {
       "publish": true
