@@ -48,7 +48,7 @@ export class Engine {
    * Phase 2 (llm | hybrid): Call Ollama NER to detect PERSON / ORG names.
    *   If Ollama is unavailable, this phase is silently skipped.
    */
-  async process(text: string): Promise<string> {
+  async process(text: string, extraLiterals?: string[]): Promise<string> {
     const cfg = ConfigManager.getInstance().get()
     const rules = LANGUAGE_MAP[cfg.lang] ?? EnglishRules
 
@@ -58,10 +58,26 @@ export class Engine {
       result = this.applyRegexRules(result, rules, cfg.strictValidation)
     }
 
+    const allLiterals = [...(cfg.customLiterals ?? []), ...(extraLiterals ?? [])]
+    if (allLiterals.length > 0) {
+      result = this.applyCustomLiterals(result, allLiterals)
+    }
+
     if ((cfg.engines === 'llm' || cfg.engines === 'hybrid') && this.ollamaClient !== null) {
       result = await this.applyLlmNer(result)
     }
 
+    return result
+  }
+
+  private applyCustomLiterals(text: string, literals: string[]): string {
+    let result = text
+    const sorted = [...literals].filter(Boolean).sort((a, b) => b.length - a.length)
+    for (const literal of sorted) {
+      const escaped = literal.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      const re = new RegExp(escaped, 'gi')
+      result = result.replace(re, (match) => this.store.add('CUSTOM', match))
+    }
     return result
   }
 
