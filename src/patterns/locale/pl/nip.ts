@@ -18,8 +18,8 @@ function nipChecksum(raw: string): boolean {
 export const nipRule: PatternRule = {
   id: 'pl.nip',
   entityType: 'NIP',
-  // 10 digits, optionally separated by spaces or dashes in groups: XXX-XXX-XX-XX or XXX-XX-XX-XXX
-  pattern: /\b\d{3}[\s\-]?\d{3}[\s\-]?\d{2}[\s\-]?\d{2}\b/g,
+  // 10 digits in XXX-XXX-XX-XX format (hyphens required)
+  pattern: /\b\d{3}-\d{3}-\d{2}-\d{2}\b/g,
   locales: ['pl'],
   engines: ['strict', 'paranoid'],
   description: 'Polish tax identification number (NIP) — 10 digits with checksum',

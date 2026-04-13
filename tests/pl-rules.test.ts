@@ -44,6 +44,18 @@ describe('PESEL', () => {
   it('matches PESEL embedded in text', () => {
     expect(findMatches(def, 'PESEL: 90010112318, reszta')).toHaveLength(1)
   })
+
+  it('matches "PESEL XXXXXXXXXXX" as a whole (prefix included)', () => {
+    const matches = findMatches(def, 'PESEL 90010112318')
+    expect(matches).toHaveLength(1)
+    expect(matches[0]).toBe('PESEL 90010112318')
+  })
+
+  it('matches "(PESEL XXXXXXXXXXX)" — prefix inside parens', () => {
+    const matches = findMatches(def, '(PESEL 90010112318)')
+    expect(matches).toHaveLength(1)
+    expect(matches[0]).toBe('PESEL 90010112318')
+  })
 })
 
 describe('IBAN', () => {
@@ -107,5 +119,37 @@ describe('PHONE', () => {
 
   it('matches 9-digit mobile number starting with 5', () => {
     expect(findMatches(def, '512345678')).toHaveLength(1)
+  })
+
+  it('matches landline without prefix: "22 555 44 33"', () => {
+    expect(findMatches(def, '22 555 44 33')).toHaveLength(1)
+  })
+
+  it('matches landline without prefix: "22 4443322"', () => {
+    expect(findMatches(def, '22 4443322')).toHaveLength(1)
+  })
+
+  it('matches landline with +48 prefix: "+48 22 555 44 33"', () => {
+    expect(findMatches(def, '+48 22 555 44 33')).toHaveLength(1)
+  })
+})
+
+describe('NIP', () => {
+  const def = getPattern('NIP')
+
+  it('matches NIP in XXX-XXX-XX-XX format', () => {
+    expect(findMatches(def, '526-000-00-05')).toHaveLength(1)
+  })
+
+  it('matches NIP with "NIP" label', () => {
+    expect(findMatches(def, 'NIP 526-000-00-05')).toHaveLength(1)
+  })
+
+  it('does not match NIP without hyphens', () => {
+    expect(findMatches(def, '5260000000')).toHaveLength(0)
+  })
+
+  it('does not match NIP with spaces instead of hyphens', () => {
+    expect(findMatches(def, '526 000 00 00')).toHaveLength(0)
   })
 })
