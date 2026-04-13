@@ -3,3 +3,8 @@ dist/
 coverage/
 *.js.map
 .DS_Store
+
+# Local registry auth and build artifacts
+.mcpregistry_github_token
+.mcpregistry_registry_token
+mcp-publisher
