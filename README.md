@@ -262,7 +262,8 @@ Restart your client. The `mask_text` and `unmask_text` tools appear automaticall
 ```json
 {
   "text": "John Smith (SSN: 123-45-6789) works at Acme Corp.",
-  "session_id": "optional — omit to create a new session"
+  "session_id": "optional — omit to create a new session",
+  "custom_literals": ["John Smith", "Acme Corp"]
 }
 ```
 
@@ -296,7 +297,8 @@ Restart your client. The `mask_text` and `unmask_text` tools appear automaticall
   "ollamaModel": "llama3",
   "ollamaBaseUrl": "http://localhost:11434",
   "autoUnmask": false,
-  "strictValidation": true
+  "strictValidation": true,
+  "customLiterals": ["Jan Kowalski", "78091512345", "+48 123 456 789"]
 }
 ```
 
@@ -308,6 +310,7 @@ Restart your client. The `mask_text` and `unmask_text` tools appear automaticall
 | `ollamaBaseUrl`    | URL                          | `http://localhost:11434` | Ollama API endpoint                                                                  |
 | `autoUnmask`       | `true` \| `false`            | `false`                  | Auto-restore tokens in LLM responses                                                 |
 | `strictValidation` | `true` \| `false`            | `true`                   | Enable checksum / format validation (SSN area check, Luhn for cards, PESEL checksum) |
+| `customLiterals`   | `string[]`                   | `[]`                     | Specific strings always redacted regardless of engine (names, IDs, phone numbers)    |
 
 ### CLI flags
 
@@ -317,14 +320,15 @@ All config keys can be overridden at startup (highest priority):
 pseudonym-mcp --lang en --engines regex --ollama-model llama3 --auto-unmask
 ```
 
-| Flag                | Description                                            |
-| ------------------- | ------------------------------------------------------ |
-| `--lang`            | Language for regex rules: `en` or `pl` (default: `en`) |
-| `--engines`         | `regex`, `llm`, or `hybrid` (default: `hybrid`)        |
-| `--ollama-model`    | Ollama model to use for NER                            |
-| `--ollama-base-url` | Ollama base URL                                        |
-| `--config`          | Path to a custom JSON config file                      |
-| `--auto-unmask`     | Enable automatic response de-tokenization              |
+| Flag                | Description                                                                 |
+| ------------------- | --------------------------------------------------------------------------- |
+| `--lang`            | Language for regex rules: `en` or `pl` (default: `en`)                      |
+| `--engines`         | `regex`, `llm`, or `hybrid` (default: `hybrid`)                             |
+| `--ollama-model`    | Ollama model to use for NER                                                 |
+| `--ollama-base-url` | Ollama base URL                                                             |
+| `--config`          | Path to a custom JSON config file                                           |
+| `--auto-unmask`     | Enable automatic response de-tokenization                                   |
+| `--custom-literals` | Comma-separated strings to always redact, e.g. `"Jan Kowalski,78091512345"` |
 
 ### Claude Code
 
@@ -363,6 +367,14 @@ Add to `~/.cursor/mcp.json`:
 ```
 
 ## Supported PII types
+
+### Custom literals
+
+| Tag      | Detection                                                                                      | Match        |
+| -------- | ---------------------------------------------------------------------------------------------- | ------------ |
+| `CUSTOM` | Exact match (case-insensitive) against `customLiterals` config or `custom_literals` tool param | Exact string |
+
+Custom literals are applied after the regex phase and before LLM NER, regardless of engine mode. Longest literals are matched first to prevent partial substitution.
 
 ### Global (all languages)
 

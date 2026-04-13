@@ -18,6 +18,7 @@ program
   .option('--ollama-base-url <url>', 'Ollama base URL', 'http://localhost:11434')
   .option('--config <path>', 'Path to a JSON config file (default: ./mcp-config.json)')
   .option('--auto-unmask', 'Automatically unmask tokens in LLM responses', false)
+  .option('--custom-literals <items>', 'Comma-separated strings to always redact')
   .action(
     async (opts: {
       lang: string
@@ -26,6 +27,7 @@ program
       ollamaBaseUrl: string
       config?: string
       autoUnmask: boolean
+      customLiterals?: string
     }) => {
       const engines: EngineMode = VALID_ENGINES.includes(opts.engines as EngineMode)
         ? (opts.engines as EngineMode)
@@ -38,6 +40,12 @@ program
         ollamaBaseUrl: opts.ollamaBaseUrl,
         config: opts.config,
         autoUnmask: opts.autoUnmask,
+        customLiterals: opts.customLiterals
+          ? opts.customLiterals
+              .split(',')
+              .map((s) => s.trim())
+              .filter(Boolean)
+          : undefined,
       })
 
       const cfg = ConfigManager.getInstance().get()

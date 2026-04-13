@@ -42,14 +42,18 @@ the original values later using unmask_text.`,
         .describe(
           'Optional: reuse an existing session to preserve token numbering across multiple calls',
         ),
+      custom_literals: z
+        .array(z.string())
+        .optional()
+        .describe('Specific strings to always redact (names, IDs, phone numbers)'),
     },
-    async ({ text, session_id }) => {
+    async ({ text, session_id, custom_literals }) => {
       const sid = session_id ?? crypto.randomUUID()
       const engine = getOrCreateEngine(sid)
 
       let maskedText: string
       try {
-        maskedText = await engine.process(text)
+        maskedText = await engine.process(text, custom_literals)
       } catch (err) {
         return {
           content: [{ type: 'text' as const, text: `Error during masking: ${String(err)}` }],

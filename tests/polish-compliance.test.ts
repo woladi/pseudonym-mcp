@@ -152,4 +152,28 @@ describe('Polish compliance — full round-trip', () => {
     expect(result.split('[PERSON:1]').length - 1).toBe(2)
     expect(result).not.toContain('[PERSON:2]')
   })
+
+  it('masks custom literal regardless of engine mode', async () => {
+    ConfigManager.init({ lang: 'pl', engines: 'regex', customLiterals: ['Jan Kowalski'] })
+    const engine = new Engine(new MappingStore(), null)
+    const result = await engine.process('Umowa zawarta z Jan Kowalski dnia dzisiejszego.')
+    expect(result).not.toContain('Jan Kowalski')
+    expect(result).toContain('[CUSTOM:1]')
+  })
+
+  it('masks custom literal case-insensitively', async () => {
+    ConfigManager.init({ lang: 'pl', engines: 'regex', customLiterals: ['jan kowalski'] })
+    const engine = new Engine(new MappingStore(), null)
+    const result = await engine.process('JAN KOWALSKI podpisał umowę.')
+    expect(result).not.toContain('JAN KOWALSKI')
+    expect(result).toContain('[CUSTOM:1]')
+  })
+
+  it('restores custom literal on revert', async () => {
+    ConfigManager.init({ lang: 'pl', engines: 'regex', customLiterals: ['Jan Kowalski'] })
+    const engine = new Engine(new MappingStore(), null)
+    const masked = await engine.process('Podpisano: Jan Kowalski')
+    const reverted = engine.revert(masked)
+    expect(reverted).toBe('Podpisano: Jan Kowalski')
+  })
 })

@@ -10,6 +10,7 @@ export interface Config {
   ollamaBaseUrl: string
   autoUnmask: boolean
   strictValidation: boolean
+  customLiterals: string[]
 }
 
 export interface CliArgs {
@@ -20,6 +21,7 @@ export interface CliArgs {
   config?: string
   autoUnmask?: boolean
   strictValidation?: boolean
+  customLiterals?: string[]
 }
 
 const DEFAULTS: Config = {
@@ -29,6 +31,7 @@ const DEFAULTS: Config = {
   ollamaBaseUrl: 'http://localhost:11434',
   autoUnmask: false,
   strictValidation: true,
+  customLiterals: [],
 }
 
 /**
@@ -71,6 +74,7 @@ export class ConfigManager {
     if (cliArgs.ollamaBaseUrl !== undefined) cfg.ollamaBaseUrl = cliArgs.ollamaBaseUrl
     if (cliArgs.autoUnmask !== undefined) cfg.autoUnmask = cliArgs.autoUnmask
     if (cliArgs.strictValidation !== undefined) cfg.strictValidation = cliArgs.strictValidation
+    if (cliArgs.customLiterals !== undefined) cfg.customLiterals = cliArgs.customLiterals
 
     this.config = cfg
   }
