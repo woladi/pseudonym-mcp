@@ -8,6 +8,7 @@ Local privacy proxy for LLMs — pseudonymizes sensitive data before it reaches 
 [![GDPR Ready](https://img.shields.io/badge/GDPR-ready-0070f3?style=flat-square)](#gdpr--ai-compliance)
 [![Zero Cloud](https://img.shields.io/badge/zero%20cloud-detection-brightgreen?style=flat-square)](#)
 [![Offline NER](https://img.shields.io/badge/NER-local%20%2F%20offline-blue?style=flat-square)](#)
+[![SafeSkill 92/100](https://img.shields.io/badge/SafeSkill-92%2F100_Verified%20Safe-brightgreen)](https://safeskill.dev/scan/woladi-pseudonym-mcp)
 
 Sits between your application and any cloud LLM (Claude, GPT-4, Gemini…). Replaces PII with opaque tokens locally before the prompt ever leaves your machine, then seamlessly restores original values in the response — so users never see the tags.
 
