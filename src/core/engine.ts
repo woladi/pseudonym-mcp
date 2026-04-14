@@ -100,24 +100,82 @@ export class Engine {
     return result
   }
 
+  /**
+   * Split text into sentence-boundary chunks with 1-sentence overlap.
+   * Visible for testing.
+   */
+  static splitIntoChunks(text: string, maxLen: number = 800): string[] {
+    // Split into sentences at . ! ? followed by whitespace
+    const sentences: string[] = []
+    let lastIdx = 0
+    const re = /[.!?][\s]+/g
+    let match: RegExpExecArray | null
+
+    while ((match = re.exec(text)) !== null) {
+      const end = match.index + match[0].length
+      sentences.push(text.slice(lastIdx, end))
+      lastIdx = end
+    }
+    if (lastIdx < text.length) {
+      sentences.push(text.slice(lastIdx))
+    }
+    if (sentences.length === 0) return [text]
+
+    // Build chunks with 1-sentence overlap
+    const chunks: string[] = []
+    let current = ''
+    let lastSentence = ''
+
+    for (const sentence of sentences) {
+      if (current.length + sentence.length > maxLen && current.length > 0) {
+        chunks.push(current)
+        current = lastSentence // overlap: start with last sentence of previous chunk
+      }
+      current += sentence
+      lastSentence = sentence
+    }
+    if (current) chunks.push(current)
+
+    return chunks
+  }
+
   private async applyLlmNer(text: string): Promise<string> {
-    let entities: OllamaEntity[]
-    try {
-      entities = await this.ollamaClient!.extractEntities(text)
-    } catch (err) {
-      process.stderr.write(
-        `[pseudonym-mcp] Ollama NER failed (skipping LLM phase): ${String(err)}\n`,
-      )
-      return text
+    const chunks = Engine.splitIntoChunks(text)
+
+    // Collect all entities across chunks, passing known entities as context
+    const allEntities: OllamaEntity[] = []
+
+    for (let i = 0; i < chunks.length; i++) {
+      let chunkEntities: OllamaEntity[]
+      try {
+        chunkEntities = await this.ollamaClient!.extractEntities(
+          chunks[i],
+          allEntities.length > 0 ? allEntities : undefined,
+        )
+      } catch (err) {
+        process.stderr.write(
+          `[pseudonym-mcp] Ollama NER failed on chunk ${i + 1}/${chunks.length} (skipping): ${String(err)}\n`,
+        )
+        continue
+      }
+
+      // Deduplicate: add only entities not already known
+      for (const entity of chunkEntities) {
+        const val = entity.value.trim()
+        if (!val) continue
+        if (!allEntities.some((e) => e.value === val && e.type === entity.type)) {
+          allEntities.push(entity)
+        }
+      }
     }
 
-    if (entities.length === 0) return text
+    if (allEntities.length === 0) return text
 
     let result = text
 
     // Sort longest-first to prevent partial matches
     // e.g. "Auto-Lux International" must be replaced before "Auto-Lux"
-    const sorted = [...entities].sort((a, b) => b.value.length - a.value.length)
+    const sorted = [...allEntities].sort((a, b) => b.value.length - a.value.length)
 
     for (const entity of sorted) {
       const val = entity.value.trim()

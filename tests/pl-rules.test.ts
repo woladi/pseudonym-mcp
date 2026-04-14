@@ -145,11 +145,43 @@ describe('NIP', () => {
     expect(findMatches(def, 'NIP 526-000-00-05')).toHaveLength(1)
   })
 
+  it('captures "NIP" label as part of the match', () => {
+    const matches = findMatches(def, 'NIP 526-000-00-05')
+    expect(matches).toHaveLength(1)
+    expect(matches[0]).toBe('NIP 526-000-00-05')
+  })
+
+  it('captures "NIP:" label with colon as part of the match', () => {
+    const matches = findMatches(def, 'NIP: 526-000-00-05')
+    expect(matches).toHaveLength(1)
+    expect(matches[0]).toBe('NIP: 526-000-00-05')
+  })
+
   it('does not match NIP without hyphens', () => {
     expect(findMatches(def, '5260000000')).toHaveLength(0)
   })
 
   it('does not match NIP with spaces instead of hyphens', () => {
     expect(findMatches(def, '526 000 00 00')).toHaveLength(0)
+  })
+})
+
+describe('PHONE — landline with +48 prefix', () => {
+  const def = getPattern('PHONE')
+
+  it('captures full "+48 22 555 44 33" including prefix', () => {
+    const matches = findMatches(def, '+48 22 555 44 33')
+    expect(matches).toHaveLength(1)
+    expect(matches[0]).toBe('+48 22 555 44 33')
+  })
+
+  it('matches "+48 22 300 40 50" (landline 2+3+2+2 grouping)', () => {
+    const matches = findMatches(def, '+48 22 300 40 50')
+    expect(matches).toHaveLength(1)
+    expect(matches[0]).toBe('+48 22 300 40 50')
+  })
+
+  it('does not match +48 followed by 10 digits', () => {
+    expect(findMatches(def, '+48 22 300 400 500')).toHaveLength(0)
   })
 })
