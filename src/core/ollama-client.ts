@@ -27,12 +27,21 @@ export class OllamaClient {
   constructor(opts: OllamaClientOptions) {
     this.baseUrl = opts.baseUrl
     this.model = opts.model
-    this.timeoutMs = opts.timeoutMs ?? 10_000
+    this.timeoutMs = opts.timeoutMs ?? 15_000
   }
 
-  async extractEntities(text: string): Promise<OllamaEntity[]> {
+  async extractEntities(
+    text: string,
+    knownEntities?: OllamaEntity[],
+  ): Promise<OllamaEntity[]> {
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), this.timeoutMs)
+
+    let systemContent = SYSTEM_PROMPT
+    if (knownEntities && knownEntities.length > 0) {
+      const list = knownEntities.map((e) => `"${e.value}" = ${e.type}`).join('; ')
+      systemContent += `\nPreviously identified entities (reuse these exact values if they appear again): ${list}`
+    }
 
     let res: Response
     try {
@@ -44,7 +53,7 @@ export class OllamaClient {
           model: this.model,
           stream: false,
           messages: [
-            { role: 'system', content: SYSTEM_PROMPT },
+            { role: 'system', content: systemContent },
             { role: 'user', content: text },
           ],
         }),
