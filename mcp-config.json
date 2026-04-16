@@ -1,5 +1,5 @@
 {
-  "lang": "en",
+  "lang": "pl",
   "engines": "hybrid",
   "ollamaModel": "llama3",
   "ollamaBaseUrl": "http://localhost:11434",
