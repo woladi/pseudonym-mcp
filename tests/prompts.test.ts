@@ -25,7 +25,7 @@ describe('pseudonymizeTaskMessage', () => {
 
   it('uses config lang when lang arg is omitted', () => {
     const msg = pseudonymizeTaskMessage({ text: 'x', task: 'y' })
-    expect(msg).toContain('lang: en') // default config lang
+    expect(msg).toContain('lang: pl') // default config lang
   })
 
   it('overrides lang when provided', () => {
@@ -64,7 +64,7 @@ describe('privacyScanFileMessage', () => {
 
   it('uses config lang when lang arg is omitted', () => {
     const msg = privacyScanFileMessage({ filePath: '/tmp/file.pdf' })
-    expect(msg).toContain('lang: en')
+    expect(msg).toContain('lang: pl')
   })
 
   it('overrides lang when provided', () => {
