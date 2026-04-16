@@ -41,8 +41,16 @@ describe('PESEL', () => {
     expect(findMatches(def, '123456789012')).toHaveLength(0)
   })
 
-  it('matches PESEL embedded in text', () => {
-    expect(findMatches(def, 'PESEL: 90010112318, reszta')).toHaveLength(1)
+  it('matches "PESEL: XXXXXXXXXXX" as a whole (colon prefix)', () => {
+    const matches = findMatches(def, 'PESEL: 90010112318, reszta')
+    expect(matches).toHaveLength(1)
+    expect(matches[0]).toBe('PESEL: 90010112318')
+  })
+
+  it('matches "PESEL:XXXXXXXXXXX" (colon without space)', () => {
+    const matches = findMatches(def, 'PESEL:90010112318')
+    expect(matches).toHaveLength(1)
+    expect(matches[0]).toBe('PESEL:90010112318')
   })
 
   it('matches "PESEL XXXXXXXXXXX" as a whole (prefix included)', () => {
