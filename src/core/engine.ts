@@ -5,6 +5,17 @@ import type { LanguageRules } from '../languages/types.js'
 import { EnglishRules } from '../languages/en/rules.js'
 import { PolishRules } from '../languages/pl/rules.js'
 
+/** Represents the outcome of the NER (Ollama) phase. */
+export type NerStatus =
+  | 'ready' // Ollama responded and NER was applied
+  | 'warming_up' // Ollama timed out — model is likely still loading (cold start)
+  | 'disabled' // NER not attempted (engines=regex, no client, or connection refused)
+
+export interface ProcessResult {
+  maskedText: string
+  nerStatus: NerStatus
+}
+
 const LANGUAGE_MAP: Record<string, LanguageRules> = {
   en: EnglishRules,
   pl: PolishRules,
@@ -47,8 +58,21 @@ export class Engine {
    *   (PESEL, IBAN, email, phone).
    * Phase 2 (llm | hybrid): Call Ollama NER to detect PERSON / ORG names.
    *   If Ollama is unavailable, this phase is silently skipped.
+   *
+   * Returns the masked text as a plain string (backward-compatible).
+   * Use processWithStatus() to also get the NER status.
    */
   async process(text: string, extraLiterals?: string[]): Promise<string> {
+    return (await this.processWithStatus(text, extraLiterals)).maskedText
+  }
+
+  /**
+   * Same as process() but also returns the NER phase outcome:
+   *   'ready'      — Ollama responded, PERSON/ORG entities were detected and masked
+   *   'warming_up' — Ollama timed out (cold start); retry in a few seconds
+   *   'disabled'   — NER not attempted (engines=regex, or Ollama connection refused)
+   */
+  async processWithStatus(text: string, extraLiterals?: string[]): Promise<ProcessResult> {
     const cfg = ConfigManager.getInstance().get()
     const rules = LANGUAGE_MAP[cfg.lang] ?? EnglishRules
 
@@ -63,11 +87,14 @@ export class Engine {
       result = this.applyCustomLiterals(result, allLiterals)
     }
 
+    let nerStatus: NerStatus = 'disabled'
     if ((cfg.engines === 'llm' || cfg.engines === 'hybrid') && this.ollamaClient !== null) {
-      result = await this.applyLlmNer(result)
+      const { result: nerResult, nerStatus: ns } = await this.applyLlmNer(result)
+      result = nerResult
+      nerStatus = ns
     }
 
-    return result
+    return { maskedText: result, nerStatus }
   }
 
   private applyCustomLiterals(text: string, literals: string[]): string {
@@ -139,11 +166,13 @@ export class Engine {
     return chunks
   }
 
-  private async applyLlmNer(text: string): Promise<string> {
+  private async applyLlmNer(text: string): Promise<{ result: string; nerStatus: NerStatus }> {
     const chunks = Engine.splitIntoChunks(text)
 
     // Collect all entities across chunks, passing known entities as context
     const allEntities: OllamaEntity[] = []
+    let anySucceeded = false
+    let anyTimeout = false
 
     for (let i = 0; i < chunks.length; i++) {
       let chunkEntities: OllamaEntity[]
@@ -152,7 +181,12 @@ export class Engine {
           chunks[i],
           allEntities.length > 0 ? allEntities : undefined,
         )
+        anySucceeded = true
       } catch (err) {
+        // AbortError = timeout (cold start); other errors = connection refused / HTTP error
+        if (err instanceof Error && err.name === 'AbortError') {
+          anyTimeout = true
+        }
         process.stderr.write(
           `[pseudonym-mcp] Ollama NER failed on chunk ${i + 1}/${chunks.length} (skipping): ${String(err)}\n`,
         )
@@ -169,7 +203,10 @@ export class Engine {
       }
     }
 
-    if (allEntities.length === 0) return text
+    // Determine NER status based on what happened
+    const nerStatus: NerStatus = anySucceeded ? 'ready' : anyTimeout ? 'warming_up' : 'disabled'
+
+    if (allEntities.length === 0) return { result: text, nerStatus }
 
     let result = text
 
@@ -186,7 +223,7 @@ export class Engine {
       result = result.replace(re, () => this.store.add(entity.type, val))
     }
 
-    return result
+    return { result, nerStatus }
   }
 
   /**

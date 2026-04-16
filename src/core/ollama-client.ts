@@ -30,6 +30,43 @@ export class OllamaClient {
     this.timeoutMs = opts.timeoutMs ?? 15_000
   }
 
+  /**
+   * Check whether the model is loaded and ready to respond to inference.
+   * Sends a minimal chat request; returns true if Ollama replies within timeoutMs.
+   */
+  async isModelReady(timeoutMs = 10_000): Promise<boolean> {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), timeoutMs)
+    try {
+      const res = await fetch(`${this.baseUrl}/api/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
+        body: JSON.stringify({
+          model: this.model,
+          stream: false,
+          messages: [
+            { role: 'system', content: 'Reply with []' },
+            { role: 'user', content: 'Ping.' },
+          ],
+        }),
+      })
+      return res.ok
+    } catch {
+      return false
+    } finally {
+      clearTimeout(timer)
+    }
+  }
+
+  /**
+   * Fire-and-forget: trigger model loading without waiting for the result.
+   * Call at server startup so the model is warm before the first real request.
+   */
+  warmUp(): void {
+    void this.isModelReady().catch(() => undefined)
+  }
+
   async extractEntities(
     text: string,
     knownEntities?: OllamaEntity[],
