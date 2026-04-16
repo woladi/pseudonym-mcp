@@ -1,10 +1,18 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
-import { Engine } from '../core/engine.js'
+import { Engine, type NerStatus } from '../core/engine.js'
+import { OllamaClient } from '../core/ollama-client.js'
 import { MappingStore } from '../core/mapping-store.js'
 import { ConfigManager } from '../config/manager.js'
 import { pseudonymizeTaskMessage, privacyScanFileMessage } from './prompts.js'
+
+const NER_WARNING: Record<NerStatus, string | null> = {
+  ready: null,
+  warming_up:
+    'NER unavailable — Ollama is still loading the model. Retry in a few seconds for PERSON/ORG masking.',
+  disabled: null,
+}
 
 // Session registry: session_id → Engine (each Engine holds its own MappingStore)
 const sessions = new Map<string, Engine>()
@@ -46,14 +54,37 @@ the original values later using unmask_text.`,
         .array(z.string())
         .optional()
         .describe('Specific strings to always redact (names, IDs, phone numbers)'),
+      wait_for_ner: z
+        .boolean()
+        .optional()
+        .describe(
+          'If true, wait up to 30 s for Ollama to finish loading the model before processing (default: false)',
+        ),
     },
-    async ({ text, session_id, custom_literals }) => {
+    async ({ text, session_id, custom_literals, wait_for_ner }) => {
+      const cfg = ConfigManager.getInstance().get()
       const sid = session_id ?? crypto.randomUUID()
       const engine = getOrCreateEngine(sid)
 
+      // Optional: block until Ollama is inference-ready (warm-up wait)
+      if (wait_for_ner && (cfg.engines === 'llm' || cfg.engines === 'hybrid')) {
+        const client = new OllamaClient({ baseUrl: cfg.ollamaBaseUrl, model: cfg.ollamaModel })
+        const deadline = Date.now() + 30_000
+        while (Date.now() < deadline) {
+          if (await client.isModelReady()) break
+          const remaining = deadline - Date.now()
+          if (remaining > 5_000) {
+            await new Promise<void>((r) => setTimeout(r, 5_000))
+          } else {
+            break
+          }
+        }
+      }
+
       let maskedText: string
+      let nerStatus: NerStatus
       try {
-        maskedText = await engine.process(text, custom_literals)
+        ;({ maskedText, nerStatus } = await engine.processWithStatus(text, custom_literals))
       } catch (err) {
         return {
           content: [{ type: 'text' as const, text: `Error during masking: ${String(err)}` }],
@@ -61,21 +92,20 @@ the original values later using unmask_text.`,
         }
       }
 
-      const cfg = ConfigManager.getInstance().get()
+      const warning = NER_WARNING[nerStatus]
+      const responseBody: Record<string, unknown> = {
+        session_id: sid,
+        masked_text: maskedText,
+        auto_unmask: cfg.autoUnmask,
+        ner_status: nerStatus,
+      }
+      if (warning) responseBody['ner_warning'] = warning
 
       return {
         content: [
           {
             type: 'text' as const,
-            text: JSON.stringify(
-              {
-                session_id: sid,
-                masked_text: maskedText,
-                auto_unmask: cfg.autoUnmask,
-              },
-              null,
-              2,
-            ),
+            text: JSON.stringify(responseBody, null, 2),
           },
         ],
       }
@@ -169,5 +199,14 @@ in the session identified by session_id.`,
 export async function startServer(): Promise<void> {
   const server = createMcpServer()
   const transport = new StdioServerTransport()
+
+  // Task 3: fire-and-forget warm-up — forces the Ollama model to load into RAM
+  // so it is ready before the first real mask_text request arrives.
+  const cfg = ConfigManager.getInstance().get()
+  if (cfg.engines === 'hybrid' || cfg.engines === 'llm') {
+    const warmUpClient = new OllamaClient({ baseUrl: cfg.ollamaBaseUrl, model: cfg.ollamaModel })
+    warmUpClient.warmUp()
+  }
+
   await server.connect(transport)
 }
