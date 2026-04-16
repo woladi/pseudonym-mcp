@@ -178,6 +178,106 @@ describe('Chunked NER — token consistency', () => {
   })
 })
 
+describe('Short text NER — no minimum size restriction', () => {
+  it('produces exactly 1 chunk for text shorter than maxLen', () => {
+    const text = 'Jan Kowalski złożył pozew przeciwko BNP Paribas.'
+    const chunks = Engine.splitIntoChunks(text, 800)
+    expect(chunks).toHaveLength(1)
+    expect(chunks[0]).toBe(text)
+  })
+
+  it('calls Ollama exactly once for short text and masks PERSON + ORG', async () => {
+    ConfigManager.init({ lang: 'pl', engines: 'hybrid' })
+
+    const input =
+      'Tomasz Kowalski złożył pozew przeciwko BNP Paribas Bank Polska S.A. Reprezentuje go radca prawna Anna Nowakowska z kancelarii Nowakowska & Partnerzy.'
+
+    let callCount = 0
+    const mockOllamaClient = {
+      extractEntities: async (_text: string) => {
+        callCount++
+        return [
+          { type: 'PERSON' as const, value: 'Tomasz Kowalski' },
+          { type: 'PERSON' as const, value: 'Anna Nowakowska' },
+          { type: 'ORG' as const, value: 'BNP Paribas Bank Polska S.A.' },
+          { type: 'ORG' as const, value: 'Nowakowska & Partnerzy' },
+        ]
+      },
+    } as unknown as OllamaClient
+
+    const store = new MappingStore()
+    const engine = new Engine(store, mockOllamaClient)
+    const masked = await engine.process(input)
+
+    // Ollama should be called exactly once (1 chunk)
+    expect(callCount).toBe(1)
+
+    // All entities must be masked
+    expect(masked).not.toContain('Tomasz Kowalski')
+    expect(masked).not.toContain('Anna Nowakowska')
+    expect(masked).not.toContain('BNP Paribas Bank Polska S.A.')
+    expect(masked).not.toContain('Nowakowska & Partnerzy')
+    expect(masked).toContain('[PERSON:1]')
+    expect(masked).toContain('[PERSON:2]')
+    expect(masked).toContain('[ORG:1]')
+    expect(masked).toContain('[ORG:2]')
+
+    // Round-trip: revert restores original
+    const restored = engine.revert(masked)
+    expect(restored).toBe(input)
+  })
+
+  it('calls Ollama for very short text (single sentence, <100 chars)', async () => {
+    ConfigManager.init({ lang: 'pl', engines: 'hybrid' })
+
+    const input = 'Jan Kowalski złożył pozew przeciwko BNP Paribas.'
+
+    let callCount = 0
+    const mockOllamaClient = {
+      extractEntities: async () => {
+        callCount++
+        return [
+          { type: 'PERSON' as const, value: 'Jan Kowalski' },
+          { type: 'ORG' as const, value: 'BNP Paribas' },
+        ]
+      },
+    } as unknown as OllamaClient
+
+    const engine = new Engine(new MappingStore(), mockOllamaClient)
+    const masked = await engine.process(input)
+
+    expect(callCount).toBe(1)
+    expect(masked).not.toContain('Jan Kowalski')
+    expect(masked).not.toContain('BNP Paribas')
+    expect(masked).toContain('[PERSON:1]')
+    expect(masked).toContain('[ORG:1]')
+  })
+
+  it('calls Ollama for llm-only mode on short text', async () => {
+    ConfigManager.init({ lang: 'pl', engines: 'llm' })
+
+    const input = 'Anna Nowak pracuje w Google.'
+
+    let callCount = 0
+    const mockOllamaClient = {
+      extractEntities: async () => {
+        callCount++
+        return [
+          { type: 'PERSON' as const, value: 'Anna Nowak' },
+          { type: 'ORG' as const, value: 'Google' },
+        ]
+      },
+    } as unknown as OllamaClient
+
+    const engine = new Engine(new MappingStore(), mockOllamaClient)
+    const masked = await engine.process(input)
+
+    expect(callCount).toBe(1)
+    expect(masked).not.toContain('Anna Nowak')
+    expect(masked).not.toContain('Google')
+  })
+})
+
 describe('Chunked NER — timeout resilience', () => {
   it('skips timed-out chunk and processes remaining chunks', async () => {
     ConfigManager.init({ lang: 'pl', engines: 'hybrid' })
