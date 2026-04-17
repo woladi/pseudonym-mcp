@@ -18,8 +18,8 @@ function peselChecksum(input: string): boolean {
 export const peselRule: PatternRule = {
   id: 'pl.pesel',
   entityType: 'PESEL',
-  // Matches "PESEL XXXXXXXXXXX" / "PESEL: XXXXXXXXXXX" (whole phrase) or standalone 11 digits
-  pattern: /(?:PESEL[\s:]+)?(?<!\d)\d{11}(?!\d)/g,
+  // Matches "nr PESEL: XXXXXXXXXXX", "PESEL XXXXXXXXXXX", or standalone 11 digits
+  pattern: /(?:(?:nr\s+)?PESEL:?\s*)?(?<!\d)\d{11}(?!\d)/gi,
   locales: ['pl'],
   engines: ['balanced', 'strict', 'paranoid'],
   description: 'Polish national identification number (PESEL) — 11 digits with checksum',

@@ -41,22 +41,40 @@ describe('PESEL', () => {
     expect(findMatches(def, '123456789012')).toHaveLength(0)
   })
 
-  it('matches "PESEL: XXXXXXXXXXX" as a whole (colon prefix)', () => {
+  it('matches "PESEL XXXXXXXXXXX" as a whole', () => {
+    const matches = findMatches(def, 'PESEL 90010112318')
+    expect(matches).toHaveLength(1)
+    expect(matches[0]).toBe('PESEL 90010112318')
+  })
+
+  it('matches "PESEL: XXXXXXXXXXX" (colon + space)', () => {
     const matches = findMatches(def, 'PESEL: 90010112318, reszta')
     expect(matches).toHaveLength(1)
     expect(matches[0]).toBe('PESEL: 90010112318')
   })
 
-  it('matches "PESEL:XXXXXXXXXXX" (colon without space)', () => {
+  it('matches "PESEL:XXXXXXXXXXX" (colon, no space)', () => {
     const matches = findMatches(def, 'PESEL:90010112318')
     expect(matches).toHaveLength(1)
     expect(matches[0]).toBe('PESEL:90010112318')
   })
 
-  it('matches "PESEL XXXXXXXXXXX" as a whole (prefix included)', () => {
-    const matches = findMatches(def, 'PESEL 90010112318')
+  it('matches "nr PESEL: XXXXXXXXXXX" as a whole', () => {
+    const matches = findMatches(def, 'nr PESEL: 90010112318')
     expect(matches).toHaveLength(1)
-    expect(matches[0]).toBe('PESEL 90010112318')
+    expect(matches[0]).toBe('nr PESEL: 90010112318')
+  })
+
+  it('matches "nr PESEL XXXXXXXXXXX" (no colon)', () => {
+    const matches = findMatches(def, 'nr PESEL 90010112318')
+    expect(matches).toHaveLength(1)
+    expect(matches[0]).toBe('nr PESEL 90010112318')
+  })
+
+  it('matches case-insensitively: "Nr Pesel: XXXXXXXXXXX"', () => {
+    const matches = findMatches(def, 'Nr Pesel: 90010112318')
+    expect(matches).toHaveLength(1)
+    expect(matches[0]).toBe('Nr Pesel: 90010112318')
   })
 
   it('matches "(PESEL XXXXXXXXXXX)" — prefix inside parens', () => {
@@ -83,6 +101,32 @@ describe('IBAN', () => {
 
   it('is case-insensitive for the PL prefix', () => {
     expect(findMatches(def, 'pl27114020040000300201355387')).toHaveLength(1)
+  })
+
+  it('matches 26 compact digits (no PL prefix)', () => {
+    const matches = findMatches(def, '61109010140000071219812874')
+    expect(matches).toHaveLength(1)
+    expect(matches[0]).toBe('61109010140000071219812874')
+  })
+
+  it('matches spaced 26 digits (no PL prefix): "61 1090 1014 ..."', () => {
+    const matches = findMatches(def, '61 1090 1014 0000 0712 1981 2874')
+    expect(matches).toHaveLength(1)
+    expect(matches[0]).toBe('61 1090 1014 0000 0712 1981 2874')
+  })
+
+  it('matches spaced 26 digits embedded in sentence', () => {
+    const matches = findMatches(def, 'konto: 61 1090 1014 0000 0712 1981 2874, przelew')
+    expect(matches).toHaveLength(1)
+    expect(matches[0]).toBe('61 1090 1014 0000 0712 1981 2874')
+  })
+
+  it('does not match 25-digit number', () => {
+    expect(findMatches(def, '1234567890123456789012345')).toHaveLength(0)
+  })
+
+  it('does not match 27-digit number', () => {
+    expect(findMatches(def, '123456789012345678901234567')).toHaveLength(0)
   })
 })
 
@@ -121,12 +165,24 @@ describe('PHONE', () => {
     expect(findMatches(def, '0048123456789')).toHaveLength(1)
   })
 
-  it('matches 9-digit mobile number starting with 6', () => {
+  it('matches 9-digit mobile number starting with 6 (no spaces)', () => {
     expect(findMatches(def, '600100200')).toHaveLength(1)
   })
 
-  it('matches 9-digit mobile number starting with 5', () => {
+  it('matches 9-digit mobile number starting with 5 (no spaces)', () => {
     expect(findMatches(def, '512345678')).toHaveLength(1)
+  })
+
+  it('matches mobile without +48: "601 234 567"', () => {
+    const matches = findMatches(def, '601 234 567')
+    expect(matches).toHaveLength(1)
+    expect(matches[0]).toBe('601 234 567')
+  })
+
+  it('matches mobile without +48: "601234567" (no spaces)', () => {
+    const matches = findMatches(def, '601234567')
+    expect(matches).toHaveLength(1)
+    expect(matches[0]).toBe('601234567')
   })
 
   it('matches landline without prefix: "22 555 44 33"', () => {
