@@ -41,22 +41,40 @@ describe('PESEL', () => {
     expect(findMatches(def, '123456789012')).toHaveLength(0)
   })
 
-  it('matches "PESEL: XXXXXXXXXXX" as a whole (colon prefix)', () => {
+  it('matches "PESEL XXXXXXXXXXX" as a whole', () => {
+    const matches = findMatches(def, 'PESEL 90010112318')
+    expect(matches).toHaveLength(1)
+    expect(matches[0]).toBe('PESEL 90010112318')
+  })
+
+  it('matches "PESEL: XXXXXXXXXXX" (colon + space)', () => {
     const matches = findMatches(def, 'PESEL: 90010112318, reszta')
     expect(matches).toHaveLength(1)
     expect(matches[0]).toBe('PESEL: 90010112318')
   })
 
-  it('matches "PESEL:XXXXXXXXXXX" (colon without space)', () => {
+  it('matches "PESEL:XXXXXXXXXXX" (colon, no space)', () => {
     const matches = findMatches(def, 'PESEL:90010112318')
     expect(matches).toHaveLength(1)
     expect(matches[0]).toBe('PESEL:90010112318')
   })
 
-  it('matches "PESEL XXXXXXXXXXX" as a whole (prefix included)', () => {
-    const matches = findMatches(def, 'PESEL 90010112318')
+  it('matches "nr PESEL: XXXXXXXXXXX" as a whole', () => {
+    const matches = findMatches(def, 'nr PESEL: 90010112318')
     expect(matches).toHaveLength(1)
-    expect(matches[0]).toBe('PESEL 90010112318')
+    expect(matches[0]).toBe('nr PESEL: 90010112318')
+  })
+
+  it('matches "nr PESEL XXXXXXXXXXX" (no colon)', () => {
+    const matches = findMatches(def, 'nr PESEL 90010112318')
+    expect(matches).toHaveLength(1)
+    expect(matches[0]).toBe('nr PESEL 90010112318')
+  })
+
+  it('matches case-insensitively: "Nr Pesel: XXXXXXXXXXX"', () => {
+    const matches = findMatches(def, 'Nr Pesel: 90010112318')
+    expect(matches).toHaveLength(1)
+    expect(matches[0]).toBe('Nr Pesel: 90010112318')
   })
 
   it('matches "(PESEL XXXXXXXXXXX)" — prefix inside parens', () => {
