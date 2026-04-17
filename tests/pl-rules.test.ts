@@ -102,6 +102,32 @@ describe('IBAN', () => {
   it('is case-insensitive for the PL prefix', () => {
     expect(findMatches(def, 'pl27114020040000300201355387')).toHaveLength(1)
   })
+
+  it('matches 26 compact digits (no PL prefix)', () => {
+    const matches = findMatches(def, '61109010140000071219812874')
+    expect(matches).toHaveLength(1)
+    expect(matches[0]).toBe('61109010140000071219812874')
+  })
+
+  it('matches spaced 26 digits (no PL prefix): "61 1090 1014 ..."', () => {
+    const matches = findMatches(def, '61 1090 1014 0000 0712 1981 2874')
+    expect(matches).toHaveLength(1)
+    expect(matches[0]).toBe('61 1090 1014 0000 0712 1981 2874')
+  })
+
+  it('matches spaced 26 digits embedded in sentence', () => {
+    const matches = findMatches(def, 'konto: 61 1090 1014 0000 0712 1981 2874, przelew')
+    expect(matches).toHaveLength(1)
+    expect(matches[0]).toBe('61 1090 1014 0000 0712 1981 2874')
+  })
+
+  it('does not match 25-digit number', () => {
+    expect(findMatches(def, '1234567890123456789012345')).toHaveLength(0)
+  })
+
+  it('does not match 27-digit number', () => {
+    expect(findMatches(def, '123456789012345678901234567')).toHaveLength(0)
+  })
 })
 
 describe('EMAIL', () => {
@@ -139,12 +165,24 @@ describe('PHONE', () => {
     expect(findMatches(def, '0048123456789')).toHaveLength(1)
   })
 
-  it('matches 9-digit mobile number starting with 6', () => {
+  it('matches 9-digit mobile number starting with 6 (no spaces)', () => {
     expect(findMatches(def, '600100200')).toHaveLength(1)
   })
 
-  it('matches 9-digit mobile number starting with 5', () => {
+  it('matches 9-digit mobile number starting with 5 (no spaces)', () => {
     expect(findMatches(def, '512345678')).toHaveLength(1)
+  })
+
+  it('matches mobile without +48: "601 234 567"', () => {
+    const matches = findMatches(def, '601 234 567')
+    expect(matches).toHaveLength(1)
+    expect(matches[0]).toBe('601 234 567')
+  })
+
+  it('matches mobile without +48: "601234567" (no spaces)', () => {
+    const matches = findMatches(def, '601234567')
+    expect(matches).toHaveLength(1)
+    expect(matches[0]).toBe('601234567')
   })
 
   it('matches landline without prefix: "22 555 44 33"', () => {
