@@ -231,7 +231,7 @@ export class Engine {
    * Tokens not found in the store are left unchanged.
    */
   revert(text: string): string {
-    return text.replace(/\[[A-Z]+:\d+\]/g, (token) => {
+    return text.replace(/\[[A-Z_]+:\d+\]/g, (token) => {
       return this.store.get(token) ?? token
     })
   }
