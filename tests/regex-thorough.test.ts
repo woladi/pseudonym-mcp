@@ -33,54 +33,35 @@ describe('PL — PESEL', () => {
     expect(r).toBe('[PESEL:1]')
   })
 
-  it('masks "PESEL XXXXXXXXXXX" as one token', async () => {
+  it('masks digits in "PESEL XXXXXXXXXXX", label stays', async () => {
     const r = await plEngine().process('PESEL 90010112318')
-    expect(r).toBe('[PESEL:1]')
+    expect(r).toBe('PESEL [PESEL:1]')
   })
 
-  it('masks "PESEL: XXXXXXXXXXX" (colon) as one token', async () => {
+  it('masks digits in "PESEL: XXXXXXXXXXX", label stays', async () => {
     const r = await plEngine().process('PESEL: 90010112318')
-    expect(r).toBe('[PESEL:1]')
+    expect(r).toBe('PESEL: [PESEL:1]')
   })
 
-  it('masks "nr PESEL: XXXXXXXXXXX" as one token', async () => {
+  it('masks digits in "nr PESEL: XXXXXXXXXXX", label stays', async () => {
     const r = await plEngine().process('nr PESEL: 90010112318')
-    expect(r).toBe('[PESEL:1]')
+    expect(r).toBe('nr PESEL: [PESEL:1]')
   })
 
-  it('masks "Nr Pesel: XXXXXXXXXXX" (case-insensitive)', async () => {
-    const r = await plEngine().process('Nr Pesel: 90010112318')
-    expect(r).toBe('[PESEL:1]')
+  it('masks digits in "(PESEL XXXXXXXXXXX)", label stays', async () => {
+    const r = await plEngine().process('(PESEL 90010112318)')
+    expect(r).toBe('(PESEL [PESEL:1])')
   })
 
-  it('assigns different tokens to two distinct PESELs', async () => {
-    // 88041512388 — valid PESEL (born 1988-04-15 female)
-    // weights: [1,3,7,9,1,3,7,9,1,3] × [8,8,0,4,1,5,1,2,3,8]
-    // = 8+24+0+36+1+15+7+18+3+24 = 136 → check = (10-6)%10 = 4... let me recalculate
-    // Actually let me use known-valid PESELs only.
-    // 90010112318 — verified valid
-    // 80010112230 — let me verify: [8,0,0,1,0,1,1,2,2,3]
-    // weights [1,3,7,9,1,3,7,9,1,3] × digits:
-    // = 8+0+0+9+0+3+7+18+2+9 = 56 → check = (10-6)%10 = 4... last digit is 0 ≠ 4
-    // Let me just use two occurrences of different PESEL strings but test uniqueness via 2 PESELs
-    // Actually the simplest approach: just test the same PESEL twice → same token
-    const r = await plEngine().process(
-      'Dokument 1: PESEL 90010112318. Dokument 2: PESEL 90010112318.',
-    )
+  it('masks same PESEL twice with the same token', async () => {
+    const r = await plEngine().process('PESEL 90010112318. Ponownie: PESEL 90010112318.')
     expect(r.match(/\[PESEL:1\]/g)?.length).toBe(2)
     expect(r).not.toContain('[PESEL:2]')
   })
 
-  it('leaves invalid PESEL unmasked when strictValidation=true', async () => {
-    const r = await plEngine(true).process('PESEL: 90010112345')
-    expect(r).toContain('90010112345')
-    expect(r).not.toContain('[PESEL:')
-  })
-
-  it('masks invalid PESEL when strictValidation=false', async () => {
-    const r = await plEngine(false).process('PESEL: 90010112345')
-    expect(r).toContain('[PESEL:1]')
-    expect(r).not.toContain('90010112345')
+  it('masks 11-digit number with invalid checksum (no validation)', async () => {
+    const r = await plEngine().process('PESEL: 85042312345')
+    expect(r).toBe('PESEL: [PESEL:1]')
   })
 
   it('does not mask 10-digit number', async () => {
@@ -93,11 +74,11 @@ describe('PL — PESEL', () => {
     expect(r).not.toContain('[PESEL:')
   })
 
-  it('round-trip: revert restores original text', async () => {
+  it('round-trip: revert restores digits, label stays intact', async () => {
     const engine = plEngine()
     const input = 'Osoba: nr PESEL: 90010112318.'
     const masked = await engine.process(input)
-    expect(masked).not.toContain('90010112318')
+    expect(masked).toBe('Osoba: nr PESEL: [PESEL:1].')
     expect(engine.revert(masked)).toBe(input)
   })
 })

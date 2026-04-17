@@ -44,31 +44,17 @@ describe('Polish compliance — full round-trip', () => {
     expect(restored).toBe(input)
   })
 
-  it('does not mask an invalid PESEL when strictChecksum=true', async () => {
-    ConfigManager.init({ lang: 'pl', engines: 'hybrid', strictValidation: true })
+  it('masks any 11-digit number as PESEL (no checksum validation)', async () => {
+    ConfigManager.init({ lang: 'pl', engines: 'regex' })
 
-    const INVALID_PESEL = '90010112345' // wrong checksum digit
-
-    const mockOllamaClient = {
-      extractEntities: async () => [],
-    } as unknown as OllamaClient
-
-    const engine = new Engine(new MappingStore(), mockOllamaClient)
-    const result = await engine.process(`PESEL: ${INVALID_PESEL}`)
-
-    expect(result).toContain(INVALID_PESEL)
-    expect(result).not.toContain('[PESEL:')
-  })
-
-  it('masks an invalid PESEL when strictChecksum=false', async () => {
-    ConfigManager.init({ lang: 'pl', engines: 'regex', strictValidation: false })
-
-    const INVALID_PESEL = '90010112345'
     const engine = new Engine(new MappingStore(), null)
-    const result = await engine.process(`PESEL: ${INVALID_PESEL}`)
+    // 85042312345 — fails PESEL checksum but must still be masked
+    const result = await engine.process('PESEL: 85042312345')
 
     expect(result).toContain('[PESEL:1]')
-    expect(result).not.toContain(INVALID_PESEL)
+    expect(result).not.toContain('85042312345')
+    // Label "PESEL:" stays in the output
+    expect(result).toContain('PESEL:')
   })
 
   it('masks Polish phone in +48 format', async () => {

@@ -25,12 +25,13 @@ function getPattern(tag: string): PatternDef {
 describe('PESEL', () => {
   const def = getPattern('PESEL')
 
-  it('matches a valid PESEL', () => {
+  it('matches any 11-digit number', () => {
     expect(findMatches(def, '90010112318')).toHaveLength(1)
   })
 
-  it('rejects an invalid checksum', () => {
-    expect(findMatches(def, '90010112345')).toHaveLength(0)
+  it('matches an 11-digit number with invalid checksum', () => {
+    // No checksum validation — any 11 digits are a PESEL candidate
+    expect(findMatches(def, '85042312345')).toHaveLength(1)
   })
 
   it('does not match a 10-digit number', () => {
@@ -41,46 +42,33 @@ describe('PESEL', () => {
     expect(findMatches(def, '123456789012')).toHaveLength(0)
   })
 
-  it('matches "PESEL XXXXXXXXXXX" as a whole', () => {
+  it('matches only the digits in "PESEL XXXXXXXXXXX" (label stays)', () => {
     const matches = findMatches(def, 'PESEL 90010112318')
     expect(matches).toHaveLength(1)
-    expect(matches[0]).toBe('PESEL 90010112318')
+    expect(matches[0]).toBe('90010112318')
   })
 
-  it('matches "PESEL: XXXXXXXXXXX" (colon + space)', () => {
+  it('matches only the digits in "PESEL: XXXXXXXXXXX" (label stays)', () => {
     const matches = findMatches(def, 'PESEL: 90010112318, reszta')
     expect(matches).toHaveLength(1)
-    expect(matches[0]).toBe('PESEL: 90010112318')
+    expect(matches[0]).toBe('90010112318')
   })
 
-  it('matches "PESEL:XXXXXXXXXXX" (colon, no space)', () => {
-    const matches = findMatches(def, 'PESEL:90010112318')
-    expect(matches).toHaveLength(1)
-    expect(matches[0]).toBe('PESEL:90010112318')
-  })
-
-  it('matches "nr PESEL: XXXXXXXXXXX" as a whole', () => {
+  it('matches only the digits in "nr PESEL: XXXXXXXXXXX" (label stays)', () => {
     const matches = findMatches(def, 'nr PESEL: 90010112318')
     expect(matches).toHaveLength(1)
-    expect(matches[0]).toBe('nr PESEL: 90010112318')
+    expect(matches[0]).toBe('90010112318')
   })
 
-  it('matches "nr PESEL XXXXXXXXXXX" (no colon)', () => {
-    const matches = findMatches(def, 'nr PESEL 90010112318')
-    expect(matches).toHaveLength(1)
-    expect(matches[0]).toBe('nr PESEL 90010112318')
-  })
-
-  it('matches case-insensitively: "Nr Pesel: XXXXXXXXXXX"', () => {
-    const matches = findMatches(def, 'Nr Pesel: 90010112318')
-    expect(matches).toHaveLength(1)
-    expect(matches[0]).toBe('Nr Pesel: 90010112318')
-  })
-
-  it('matches "(PESEL XXXXXXXXXXX)" — prefix inside parens', () => {
+  it('matches only the digits in "(PESEL XXXXXXXXXXX)" (label stays)', () => {
     const matches = findMatches(def, '(PESEL 90010112318)')
     expect(matches).toHaveLength(1)
-    expect(matches[0]).toBe('PESEL 90010112318')
+    expect(matches[0]).toBe('90010112318')
+  })
+
+  it('does not match 11 digits that are part of a 26-digit IBAN', () => {
+    // Word boundary prevents matching inside a longer number sequence
+    expect(findMatches(def, '61109010140000071219812874')).toHaveLength(0)
   })
 })
 
