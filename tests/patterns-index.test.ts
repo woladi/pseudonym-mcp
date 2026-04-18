@@ -143,12 +143,12 @@ describe('peselRule', () => {
     expect(findMatches(peselRule.pattern, '123456789012')).toEqual([])
   })
 
-  it('validate() accepts a valid PESEL', () => {
-    expect(peselRule.validate!('90010112318')).toBe(true)
+  it('has no validate function (checksum not required)', () => {
+    expect(peselRule.validate).toBeUndefined()
   })
 
-  it('validate() rejects an invalid checksum', () => {
-    expect(peselRule.validate!('90010112319')).toBe(false)
+  it('matches an 11-digit number with invalid checksum', () => {
+    expect(findMatches(peselRule.pattern, '85042312345')).toHaveLength(1)
   })
 })
 
