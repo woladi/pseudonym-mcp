@@ -1,21 +1,23 @@
 # pseudonym-mcp
 
-Local privacy proxy for LLMs — pseudonymizes sensitive data before it reaches the cloud, then restores it on the way back.
+Local pseudonymisation layer for LLM workflows — replaces detected PII with opaque tokens before the prompt reaches the cloud, then restores it on the way back.
 
 [![npm version](https://img.shields.io/npm/v/pseudonym-mcp?style=flat-square&logo=npm&logoColor=white)](https://www.npmjs.com/package/pseudonym-mcp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-ffd60a?style=flat-square)](LICENSE)
 [![Node 18+](https://img.shields.io/badge/node-18%2B-339933?logo=node.js&logoColor=white&style=flat-square)](#)
-[![GDPR Ready](https://img.shields.io/badge/GDPR-ready-0070f3?style=flat-square)](#gdpr--ai-compliance)
-[![Zero Cloud](https://img.shields.io/badge/zero%20cloud-detection-brightgreen?style=flat-square)](#)
+[![GDPR-aligned](https://img.shields.io/badge/GDPR-aligned-0070f3?style=flat-square)](#gdpr--ai-compliance)
+[![Local detection](https://img.shields.io/badge/detection-local-brightgreen?style=flat-square)](#)
 [![Offline NER](https://img.shields.io/badge/NER-local%20%2F%20offline-blue?style=flat-square)](#)
 
-Sits between your application and any cloud LLM (Claude, GPT-4, Gemini…). Replaces PII with opaque tokens locally before the prompt ever leaves your machine, then seamlessly restores original values in the response — so users never see the tags.
+Sits between your application and any cloud LLM (Claude, GPT-4, Gemini…). Detects PII locally and replaces it with opaque tokens before the prompt leaves your machine, then restores original values in the response — so users never see the tags.
+
+It is a **defense-in-depth measure**, not a compliance silver bullet. Read the [Limitations](#limitations) and [GDPR & AI Compliance](#gdpr--ai-compliance) sections before assuming this stack does more than it does.
 
 ## What you get
 
 - **Multi-language PII detection**: Built-in support for English (SSN, credit cards, US phone) and Polish (PESEL, IBAN, Polish phone). New **heuristic language detection** (`detectLanguage()`) infers the language from text content — `--lang` remains the authoritative override but is no longer the only input.
-- **Hybrid NER engine**: Regex for structured PII (SSN, credit cards, IBAN, email, phone) + local Ollama LLM for unstructured entities (names, organizations).
-- **Zero-trust architecture**: All detection and substitution happens on your machine. No PII reaches a third-party API.
+- **Hybrid NER engine**: Regex for structured PII (SSN, credit cards, IBAN, email, phone) + local Ollama LLM for unstructured entities (names, organisations).
+- **Local-detection architecture**: Detection and substitution happen on your machine. The cloud LLM call still happens (that's the point) — but it sees tokens instead of detected PII.
 - **Session-keyed mapping store**: Tokens like `[PERSON:1]` map back to originals in an isolated, per-request session. Multiple round-trips preserve token coherence.
 - **Auto-unmask**: Optional mode that automatically restores tokens in the LLM's response before returning it to the user.
 - **Flexible engines**: Run `regex` only (no Ollama required), `llm` only, or `hybrid` (default).
@@ -27,53 +29,57 @@ Sits between your application and any cloud LLM (Claude, GPT-4, Gemini…). Repl
 
 ❌ **Without pseudonym-mcp:**
 
-- Prompt: `"John Smith, SSN 123-45-6789, card 4111 1111 1111 1111"` → sent verbatim to OpenAI / Anthropic servers
-- Every name, ID number, and credit card in your prompt is processed and potentially logged by the LLM provider
-- A data breach at the provider's end exposes your users' real PII
-- Sending personal data to a US-based LLM provider without explicit safeguards may violate GDPR Article 44 (international data transfers)
+- Prompt: `"John Smith, SSN 123-45-6789, card 4111 1111 1111 1111"` → sent verbatim to the LLM provider
+- Every name, ID number, and credit card in your prompt is processed and potentially logged by the provider
+- A breach at the provider's end exposes those values in cleartext
+- Sending personal data to a non-EU LLM provider without further safeguards raises GDPR Article 44 questions you'll need to answer
 
 ✅ **With pseudonym-mcp:**
 
 - The same prompt becomes `"[PERSON:1], SSN [SSN:1], card [CREDIT_CARD:1]"` before it leaves your machine
-- The LLM reasons about the structure and content without ever seeing the real values
-- The response is automatically de-tokenized locally before reaching the user
-- Your GDPR DPA can truthfully state: _personal data never left the local environment_
+- The LLM reasons about structure and content without seeing those detected values in cleartext
+- The response is locally de-tokenised before reaching the user
+- Detected direct identifiers are no longer shipped upstream — though structure, dates, indirect references, and any missed PII still are
+
+This is a meaningful reduction in cleartext PII exposure. It is **not** "no personal data leaves your machine" — see [Limitations](#limitations).
 
 ## GDPR & AI Compliance
 
-pseudonym-mcp directly addresses the regulatory challenges of using cloud AI in data-sensitive contexts.
+pseudonym-mcp is relevant to compliance work, but it is a **technical control**, not a compliance product. Whether you are compliant with any specific regulation depends on your full stack, your role (controller/processor), your contracts, your DPIA, and your jurisdiction.
 
 ### Why this matters
 
-The EU **General Data Protection Regulation (GDPR)** classifies names, national ID numbers (like SSN or PESEL), bank account numbers (IBAN), email addresses, credit card numbers, and phone numbers as **personal data** under Article 4(1). Sending this data to a cloud LLM provider constitutes **processing** under Article 4(2) and triggers a range of obligations:
+The EU **General Data Protection Regulation (GDPR)** classifies names, national ID numbers (like SSN or PESEL), bank account numbers (IBAN), email addresses, credit card numbers, and phone numbers as **personal data** under Article 4(1). Sending this data to a cloud LLM provider constitutes **processing** under Article 4(2). Pseudonymisation is explicitly recognised under Art. 4(5) as a risk-reduction measure — but, critically, **pseudonymised data is still personal data** (Recital 26).
 
-| GDPR Article | Obligation                                                           | How pseudonym-mcp helps                                                         |
-| ------------ | -------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| Art. 5(1)(c) | **Data minimisation** — only necessary data should be processed      | Strips PII before transmission; the LLM receives only what it needs to reason   |
-| Art. 25      | **Privacy by design and by default**                                 | Pseudonymization layer is built into the MCP transport, not bolted on           |
-| Art. 32      | **Security of processing** — appropriate technical measures          | Local token substitution is a recognized technical measure under Recital 83     |
-| Art. 44      | **Transfers to third countries** — requires safeguards               | If no personal data is transferred, Art. 44 restrictions do not apply           |
-| Art. 4(5)    | **Pseudonymisation** — explicitly recognized as a protective measure | Tokens are opaque; re-identification requires access to the local mapping store |
+| GDPR Article | Obligation                                                           | Where pseudonym-mcp helps                                                                        | Where it doesn't                                                                |
+| ------------ | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------- |
+| Art. 5(1)(c) | **Data minimisation**                                                | Strips detected direct identifiers before transmission                                           | Doesn't minimise context, structure, or undetected PII                          |
+| Art. 25      | **Privacy by design and by default**                                 | Provides a technical layer that fits into a privacy-by-design architecture                       | Architecture and policy decisions are still your responsibility                 |
+| Art. 32      | **Security of processing**                                           | Recognised technical measure under Recital 83 (pseudonymisation)                                 | One control among many; doesn't replace access control, logging, encryption     |
+| Art. 44      | **Transfers to third countries**                                     | Reduces the cleartext PII you transfer                                                           | Pseudonymised personal data is still personal data — transfer rules still apply |
+| Art. 4(5)    | **Pseudonymisation** definition                                      | The mapping store is opaque to the cloud LLM; re-identification requires the local session       | Re-identification is possible from context for anyone with side knowledge       |
 
-> **Note:** Pseudonymisation under GDPR (Art. 4(5)) does not equal anonymisation — the data is still personal data in your system. However, it substantially reduces risk and demonstrates compliance with the accountability principle (Art. 5(2)).
+> **The honest bottom line:** pseudonymisation under GDPR Art. 4(5) is **not** anonymisation. The data remains personal data in your system, and Art. 44 transfer obligations are not switched off just because you tokenised the name field.
 
 ### AI Act alignment
 
-The EU **AI Act** (in force from 2024) places additional requirements on high-risk AI systems that process personal data. Using pseudonym-mcp as an intermediary layer:
+The EU **AI Act** places additional requirements on high-risk AI systems that process personal data. Using pseudonym-mcp as an intermediary layer can:
 
-- Reduces the risk classification of downstream LLM usage by ensuring the model never processes identifiable natural persons' data directly.
-- Supports documentation requirements for AI system transparency and human oversight.
-- Aligns with the principle of **technical robustness and safety** (Art. 15) by limiting PII exposure surface.
+- Support data minimisation in your AI system's data flows.
+- Help document a technical control for transparency and human-oversight requirements.
+- Align with the principle of **technical robustness and safety** (Art. 15) by limiting cleartext PII exposure.
+
+It does not change your AI Act risk classification on its own — classification is a function of use-case and deployment context, not of the masking step in front of the model.
 
 ### US & international applicability
 
-While GDPR originates in the EU, pseudonym-mcp is equally relevant for:
+The tool is also relevant outside the EU, with the same caveats:
 
-- **CCPA / CPRA** (California) — consumers have the right to know what personal information is collected; minimising data sent to third-party LLMs reduces disclosure surface.
-- **HIPAA** (US healthcare) — PHI (Protected Health Information) must not be sent to non-BAA cloud providers; local pseudonymization allows LLM use without a BAA.
-- **PCI DSS** (payment industry) — credit card numbers (PAN) must never be stored or transmitted in the clear; masking before LLM transit satisfies requirement 3.4.
-- **SOC 2** — data handling controls are strengthened by demonstrating that PII is replaced before leaving the trust boundary.
-- **PIPEDA** (Canada), **LGPD** (Brazil), **POPIA** (South Africa) — all require appropriate safeguards for cross-border personal data transfers.
+- **CCPA / CPRA** (California) — reduces personal information sent to third-party processors; doesn't change controller/business obligations or consumer rights.
+- **HIPAA** (US healthcare) — pseudonymised PHI is still PHI under HIPAA. Using this tool does **not** eliminate the need for a BAA with your cloud LLM provider if you're a covered entity or business associate. It can be part of a defensible safeguard posture; it cannot substitute for one.
+- **PCI DSS** (payment industry) — Luhn-validated detection reduces the chance card numbers ride in cleartext to an LLM. It is one control; PCI scope, segmentation, and storage rules are separate concerns.
+- **SOC 2** — useful evidence of a technical control limiting PII exposure. Auditors will look at the full picture, not just this layer.
+- **PIPEDA** (Canada), **LGPD** (Brazil), **POPIA** (South Africa) — all require appropriate safeguards for cross-border personal data transfers. This tool is a relevant safeguard, not a substitute for the legal basis of the transfer.
 
 ### Sector-specific applicability
 
@@ -82,10 +88,12 @@ While GDPR originates in the EU, pseudonym-mcp is equally relevant for:
 | Healthcare         | GDPR + HIPAA + national health data laws | Patient names, SSN, diagnoses         |
 | Banking & Finance  | GDPR + PCI DSS + PSD2 + DORA             | Credit cards, IBAN, SSN, PESEL        |
 | HR & Recruitment   | GDPR Art. 9 (special categories)         | Names, national IDs, contact details  |
-| Legal              | GDPR + attorney-client privilege         | Names, case numbers, personal details |
+| Legal              | GDPR + attorney–client privilege         | Names, case numbers, personal details |
 | Insurance          | GDPR + Solvency II                       | Personal identifiers, health data     |
 | Public Sector (US) | CCPA + state privacy laws                | SSN, driver's license numbers         |
 | Public Sector (PL) | GDPR + UODO + KRI                        | PESEL, NIP, REGON                     |
+
+In every row of this table, pseudonym-mcp is a useful **building block**. None of those regimes can be satisfied by a masking tool alone.
 
 ## How it works
 
@@ -102,7 +110,7 @@ Your App / Claude Desktop
 │  Phase 2: Ollama NER    │  ← PERSON, ORG  (local LLM)
 │  MappingStore (session) │  ← [TAG:N] ↔ original value
 └────────────┬────────────┘
-             │  sanitized prompt (no PII)
+             │  sanitised prompt (detected PII → tokens)
              ▼
       Cloud LLM API
       (Claude / GPT-4 / Gemini)
@@ -154,17 +162,17 @@ We discussed a contract for 45 000 zł. Contact: jan.kowalski@acme.pl
 In Claude Code you type:
 
 ```
-Use mask_text on this note, then summarize the key points of the meeting.
+Use mask_text on this note, then summarise the key points of the meeting.
 ```
 
-**pseudonym-mcp replaces PII locally before sending to Claude:**
+**pseudonym-mcp replaces detected PII locally before the prompt goes upstream:**
 
 ```
 Meeting with [PERSON:1] ([PESEL:1]) from [ORG:1].
 We discussed a contract for 45 000 zł. Contact: [EMAIL:1]
 ```
 
-**Claude responds (sees tokens only):**
+**Claude responds (working from tokens):**
 
 ```
 Meeting with [PERSON:1] from [ORG:1] covered a contract
@@ -178,7 +186,7 @@ Meeting with Jan Kowalski from Acme sp. z o.o. covered
 a contract for 45 000 zł. Follow up via jan.kowalski@acme.pl
 ```
 
-Anthropic / OpenAI never saw any real data. The entire swap happens on your machine.
+The cloud provider saw the structure of the meeting and the amount — but not the detected name, PESEL, organisation, or email in cleartext. The swap happens on your machine.
 
 ### Obsidian vault with `session_id`
 
@@ -187,13 +195,13 @@ Anthropic / OpenAI never saw any real data. The entire swap happens on your mach
 Use mask_text on my notes — remember the session_id
 
 # ask Claude anything across multiple prompts
-Summarize all meetings from Q1
+Summarise all meetings from Q1
 
 # Claude replies with tokens; restore originals
 Use unmask_text with session_id abc123 on the response
 ```
 
-The `session_id` keeps the token map alive for the entire session — the same `[PERSON:1]` always refers to the same person, no matter how many times they appear across different notes.
+The `session_id` keeps the token map alive for the session — the same `[PERSON:1]` always refers to the same person across notes. That consistency is what makes cross-note reasoning possible; it is also what makes a masked corpus potentially re-identifiable to anyone with side knowledge of your work. Use long-lived sessions deliberately.
 
 ## MCP Prompt Templates
 
@@ -207,28 +215,28 @@ pseudonym-mcp ships two built-in prompt templates that chain masking, an LLM tas
 
 What happens:
 
-1. pseudonym-mcp masks PII locally → `[PERSON:1]`, `[PESEL:1]`
-2. Claude processes the anonymized text
+1. pseudonym-mcp masks detected PII locally → `[PERSON:1]`, `[PESEL:1]`
+2. Claude processes the masked text
 3. pseudonym-mcp restores originals in the response
 
 Optional `lang` argument: `en` (default) or `pl`.
 
 ### `privacy_scan_file` — file / PDF (macOS only)
 
-> **Requires [macos-vision-mcp](https://github.com/woladi/macos-vision-mcp)** — a separate MCP server that uses Apple's Vision framework to extract text from PDFs and images. macOS only.
+> **Requires [macos-vision-mcp](https://github.com/woladi/macos-vision-mcp)** — a separate MCP server that uses Apple's Vision framework to extract text from PDFs and images on-device. macOS only.
 
 ```
-/privacy_scan_file filePath="/Users/me/contracts/nda.pdf" task="Summarize obligations and deadlines"
+/privacy_scan_file filePath="/Users/me/contracts/nda.pdf" task="Summarise obligations and deadlines"
 ```
 
 What happens:
 
-1. macos-vision-mcp extracts text from the file
-2. pseudonym-mcp masks all PII locally
-3. Claude processes the anonymized content
+1. macos-vision-mcp extracts text from the file on-device
+2. pseudonym-mcp masks detected PII locally
+3. Claude processes the masked content
 4. pseudonym-mcp restores originals before the response is shown
 
-Optional arguments: `task` (default: _summarize the key points_), `lang` (`en` or `pl`).
+Optional arguments: `task` (default: _summarise the key points_), `lang` (`en` or `pl`).
 
 ## Quick Start
 
@@ -244,7 +252,7 @@ claude mcp add pseudonym-mcp -- npx -y pseudonym-mcp --engines hybrid
 ollama pull llama3
 ```
 
-Skip this step if you only need regex-based masking (`--engines regex`).
+Skip this step if you only need regex-based masking (`--engines regex`). Without Ollama, you'll catch structured identifiers (SSN, IBAN, cards, email, phone, PESEL) but not free-form names and organisations.
 
 > **Global install** — if you prefer `npm install -g pseudonym-mcp`, replace `npx -y pseudonym-mcp` with `pseudonym-mcp` in all snippets below.
 
@@ -254,7 +262,7 @@ Restart your client. The `mask_text` and `unmask_text` tools appear automaticall
 
 | Tool          | What it does                                                                           | Example prompt                                                  |
 | ------------- | -------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
-| `mask_text`   | Pseudonymize PII in text. Returns `masked_text` + `session_id`.                        | _"Use mask_text on this customer letter before summarizing it"_ |
+| `mask_text`   | Pseudonymise detected PII in text. Returns `masked_text` + `session_id`.               | _"Use mask_text on this customer letter before summarising it"_ |
 | `unmask_text` | Restore original values from a session. Pass the `session_id` returned by `mask_text`. | _"Use unmask_text with session_id X to restore the response"_   |
 
 ### `mask_text` input
@@ -327,7 +335,7 @@ pseudonym-mcp --lang en --engines regex --ollama-model llama3 --auto-unmask
 | `--ollama-model`    | Ollama model to use for NER                                                 |
 | `--ollama-base-url` | Ollama base URL                                                             |
 | `--config`          | Path to a custom JSON config file                                           |
-| `--auto-unmask`     | Enable automatic response de-tokenization                                   |
+| `--auto-unmask`     | Enable automatic response de-tokenisation                                   |
 | `--custom-literals` | Comma-separated strings to always redact, e.g. `"Jan Kowalski,78091512345"` |
 
 ### Claude Code
@@ -368,6 +376,8 @@ Add to `~/.cursor/mcp.json`:
 
 ## Supported PII types
 
+Detection is best-effort. The patterns below are what the tool **looks for** — not a guarantee of what it will always catch. See [Limitations](#limitations) for known gaps.
+
 ### Custom literals
 
 | Tag      | Detection                                                                                      | Match        |
@@ -396,7 +406,7 @@ Custom literals are applied after the regex phase and before LLM NER, regardless
 | `PHONE`       | `+1 (XXX) XXX-XXXX`, `XXX-XXX-XXXX`, `XXX.XXX.XXXX` | Format match                               |
 | `ZIP_CODE`    | `XXXXX` or `XXXXX-XXXX` (paranoid mode only)        | Format match                               |
 | `PERSON`      | Full names                                          | Ollama NER (hybrid / llm engines)          |
-| `ORG`         | Company / organization names                        | Ollama NER (hybrid / llm engines)          |
+| `ORG`         | Company / organisation names                        | Ollama NER (hybrid / llm engines)          |
 
 ### Polish (`--lang pl`)
 
@@ -409,7 +419,7 @@ Custom literals are applied after the regex phase and before LLM NER, regardless
 | `NIP`         | 10-digit tax ID (strict / paranoid modes)                        | Checksum (weights `[6,5,7,2,3,4,5,6,7]`)        |
 | `POSTAL_CODE` | `XX-XXX` (paranoid mode only)                                    | Format match                                    |
 | `PERSON`      | Full names                                                       | Ollama NER (hybrid / llm engines)               |
-| `ORG`         | Company / organization names                                     | Ollama NER (hybrid / llm engines)               |
+| `ORG`         | Company / organisation names                                     | Ollama NER (hybrid / llm engines)               |
 
 ## Language Detection
 
@@ -432,7 +442,7 @@ detectLanguage('Hello')
 | `confidence` | Score 0–1 from franc, or `null` when franc was not called                              |
 
 Texts shorter than 20 characters or with low confidence return `detected: 'unknown'`.
-The detector does not affect the current pseudonymization pipeline — `--lang` config remains authoritative.
+The detector does not affect the current pseudonymisation pipeline — `--lang` config remains authoritative.
 It is a building block for future multi-language and auto-select modes.
 
 ## Engine modes
@@ -443,27 +453,37 @@ It is a building block for future multi-language and auto-select modes.
 | `llm`              | Yes                     | No                     | Yes                  |
 | `hybrid` (default) | Yes (graceful fallback) | Yes                    | Yes                  |
 
-In `hybrid` mode, Ollama runs after the regex pass so the LLM never sees already-tokenized values. If Ollama is unreachable, the server logs a warning to stderr and returns the regex-only masked text — no crash, no hang.
+In `hybrid` mode, Ollama runs after the regex pass so the LLM never sees already-tokenised values. If Ollama is unreachable, the server logs a warning to stderr and returns the regex-only masked text — no crash, no hang.
 
 ## Privacy & Security notes
 
-- **No telemetry.** pseudonym-mcp makes no network requests except to your local Ollama instance and (optionally) the MCP stdio transport.
-- **In-memory only.** The mapping store is never written to disk. Sessions are scoped to the server process lifetime.
-- **Idempotent tokens.** The same original value always maps to the same token within a session (`[PERSON:1]` will not become `[PERSON:2]` for the same name on a second occurrence), preserving semantic coherence in LLM reasoning.
-- **No model training.** The local Ollama model operates entirely offline. Your data is not used to train any model.
+Calibrated claims:
+
+- **No telemetry from the tool itself.** pseudonym-mcp makes no network requests except to your local Ollama instance and (optionally) the MCP stdio transport.
+- **In-memory mapping by default.** The mapping store is not written to disk. Sessions are scoped to the server process lifetime.
+- **Idempotent tokens within a session.** The same original value always maps to the same token (`[PERSON:1]` will not become `[PERSON:2]` for the same name on a second occurrence), preserving semantic coherence in LLM reasoning.
+- **No model training.** The local Ollama model operates offline. Your data is not used to train any model by this tool.
 - **Strict validation by default.** Invalid SSNs (area 000/666/900+), failed-Luhn credit card numbers, and invalid-checksum PESELs are not masked, preventing false positives from OCR errors or random digit sequences.
+
+What this does **not** guarantee:
+
+- That all PII in your input is detected.
+- That tokenised text is unlinkable to real people — re-identification from context is possible.
+- That the cloud provider can't learn sensitive things from structure, timing, or content.
+- Compliance with any specific regulation — that's a system-level property, not a tool-level one.
 
 ## Limitations
 
 pseudonym-mcp is a technical privacy control, not a legal guarantee of compliance.
 
-- Detection is best-effort — false negatives and false positives are possible.
-- Indirect references (e.g. _"the tall guy from accounting"_) are not detected.
-- If plaintext is logged before being passed to `mask_text`, pseudonym-mcp cannot protect it.
-- The mapping store is process-local; restarting the server ends the session.
-- Re-identification is possible for anyone with access to the local mapping store — this is pseudonymization, not anonymization.
+- **Detection is best-effort.** False negatives and false positives are both possible. Indirect references (e.g. _"the tall guy from accounting"_, _"my landlord"_, _"the place near the bridge"_) are not detected. Nicknames, initials, and partial names are typically missed.
+- **Structure still travels.** Dates, amounts, relationships between tokens, narrative content, and any PII the detector missed all reach the cloud LLM. Tokenisation hides _who_, not _what kind of situation_.
+- **Pre-mask logging is your problem.** If your application logs plaintext before passing it to `mask_text`, this tool cannot help you.
+- **Process-local mapping.** Restarting the server ends the session and discards mappings. This is intentional.
+- **Re-identification is possible** for anyone with access to the local mapping store, and may be possible from context alone for anyone with side knowledge. This is pseudonymisation under GDPR Art. 4(5), not anonymisation.
+- **No legal advice.** Nothing in this README constitutes legal advice. Compliance is a system-level property — talk to your DPO, your compliance team, and your lawyers about your specific deployment.
 
-> Under GDPR Art. 4(5), pseudonymized data is still personal data in your system. pseudonym-mcp substantially reduces risk but does not eliminate your legal obligations.
+> Under GDPR Art. 4(5) and Recital 26, pseudonymised data is still personal data. pseudonym-mcp substantially reduces cleartext PII exposure but does not eliminate your legal obligations.
 
 ## Development
 
