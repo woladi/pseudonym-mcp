@@ -67,10 +67,7 @@ export class OllamaClient {
     void this.isModelReady().catch(() => undefined)
   }
 
-  async extractEntities(
-    text: string,
-    knownEntities?: OllamaEntity[],
-  ): Promise<OllamaEntity[]> {
+  async extractEntities(text: string, knownEntities?: OllamaEntity[]): Promise<OllamaEntity[]> {
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), this.timeoutMs)
 

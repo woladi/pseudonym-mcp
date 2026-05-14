@@ -1,6 +1,6 @@
 {
   "name": "pseudonym-mcp",
-  "version": "0.0.0",
+  "version": "0.2.5",
   "mcpName": "io.github.woladi/pseudonym-mcp",
   "description": "MCP server for privacy-preserving pseudonymization of sensitive data before cloud LLM processing",
   "type": "module",
@@ -32,8 +32,13 @@
     "prepare": "husky"
   },
   "lint-staged": {
-    "*.ts": ["eslint --fix", "prettier --write"],
-    "*.{json,md}": ["prettier --write"]
+    "*.ts": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md}": [
+      "prettier --write"
+    ]
   },
   "keywords": [
     "mcp",
@@ -70,7 +75,12 @@
   "bugs": {
     "url": "https://github.com/woladi/pseudonym-mcp/issues"
   },
-  "files": ["dist/", "mcp-config.json", "README.md", "LICENSE"],
+  "files": [
+    "dist/",
+    "mcp-config.json",
+    "README.md",
+    "LICENSE"
+  ],
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
     "commander": "^14.0.0",

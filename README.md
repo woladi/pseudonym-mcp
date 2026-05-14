@@ -1,6 +1,6 @@
 # pseudonym-mcp
 
-Local pseudonymisation layer for LLM workflows — replaces detected PII with opaque tokens before the prompt reaches the cloud, then restores it on the way back.
+Local pseudonymisation tools for LLM workflows — replace detected PII with opaque tokens before you hand text to a cloud LLM, then restore those tokens afterward.
 
 [![npm version](https://img.shields.io/npm/v/pseudonym-mcp?style=flat-square&logo=npm&logoColor=white)](https://www.npmjs.com/package/pseudonym-mcp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-ffd60a?style=flat-square)](LICENSE)
@@ -9,7 +9,7 @@ Local pseudonymisation layer for LLM workflows — replaces detected PII with op
 [![Local detection](https://img.shields.io/badge/detection-local-brightgreen?style=flat-square)](#)
 [![Offline NER](https://img.shields.io/badge/NER-local%20%2F%20offline-blue?style=flat-square)](#)
 
-Sits between your application and any cloud LLM (Claude, GPT-4, Gemini…). Detects PII locally and replaces it with opaque tokens before the prompt leaves your machine, then restores original values in the response — so users never see the tags.
+Expose MCP tools (`mask_text` and `unmask_text`) that your client or agent can call as an explicit privacy step. The server detects PII locally, replaces it with opaque tokens, and keeps the token mapping in memory for later restoration.
 
 It is a **defense-in-depth measure**, not a compliance silver bullet. Read the [Limitations](#limitations) and [GDPR & AI Compliance](#gdpr--ai-compliance) sections before assuming this stack does more than it does.
 
@@ -17,9 +17,9 @@ It is a **defense-in-depth measure**, not a compliance silver bullet. Read the [
 
 - **Multi-language PII detection**: Built-in support for English (SSN, credit cards, US phone) and Polish (PESEL, IBAN, Polish phone). New **heuristic language detection** (`detectLanguage()`) infers the language from text content — `--lang` remains the authoritative override but is no longer the only input.
 - **Hybrid NER engine**: Regex for structured PII (SSN, credit cards, IBAN, email, phone) + local Ollama LLM for unstructured entities (names, organisations).
-- **Local-detection architecture**: Detection and substitution happen on your machine. The cloud LLM call still happens (that's the point) — but it sees tokens instead of detected PII.
+- **Local-detection architecture**: Detection and substitution happen on your machine when the MCP tool is called. The cloud LLM call still happens (that's the point) — but it can see tokens instead of detected PII when your workflow uses the masked output.
 - **Session-keyed mapping store**: Tokens like `[PERSON:1]` map back to originals in an isolated, per-request session. Multiple round-trips preserve token coherence.
-- **Auto-unmask**: Optional mode that automatically restores tokens in the LLM's response before returning it to the user.
+- **Unmask workflow support**: `mask_text` returns `auto_unmask` for clients that want to honor that preference, but this server does not intercept arbitrary LLM responses automatically.
 - **Flexible engines**: Run `regex` only (no Ollama required), `llm` only, or `hybrid` (default).
 - **Strict validation**: SSN area-number validation, credit card Luhn checksum, PESEL checksum — all configurable.
 - **Graceful degradation**: If Ollama is unavailable, the regex phase still runs and no exception is thrown.
@@ -34,11 +34,11 @@ It is a **defense-in-depth measure**, not a compliance silver bullet. Read the [
 - A breach at the provider's end exposes those values in cleartext
 - Sending personal data to a non-EU LLM provider without further safeguards raises GDPR Article 44 questions you'll need to answer
 
-✅ **With pseudonym-mcp:**
+✅ **With pseudonym-mcp used before the cloud call:**
 
-- The same prompt becomes `"[PERSON:1], SSN [SSN:1], card [CREDIT_CARD:1]"` before it leaves your machine
+- The same prompt can become `"[PERSON:1], SSN [SSN:1], card [CREDIT_CARD:1]"` when you call `mask_text` first
 - The LLM reasons about structure and content without seeing those detected values in cleartext
-- The response is locally de-tokenised before reaching the user
+- The response can be locally de-tokenised with `unmask_text` before reaching the user
 - Detected direct identifiers are no longer shipped upstream — though structure, dates, indirect references, and any missed PII still are
 
 This is a meaningful reduction in cleartext PII exposure. It is **not** "no personal data leaves your machine" — see [Limitations](#limitations).
@@ -51,13 +51,13 @@ pseudonym-mcp is relevant to compliance work, but it is a **technical control**,
 
 The EU **General Data Protection Regulation (GDPR)** classifies names, national ID numbers (like SSN or PESEL), bank account numbers (IBAN), email addresses, credit card numbers, and phone numbers as **personal data** under Article 4(1). Sending this data to a cloud LLM provider constitutes **processing** under Article 4(2). Pseudonymisation is explicitly recognised under Art. 4(5) as a risk-reduction measure — but, critically, **pseudonymised data is still personal data** (Recital 26).
 
-| GDPR Article | Obligation                                                           | Where pseudonym-mcp helps                                                                        | Where it doesn't                                                                |
-| ------------ | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------- |
-| Art. 5(1)(c) | **Data minimisation**                                                | Strips detected direct identifiers before transmission                                           | Doesn't minimise context, structure, or undetected PII                          |
-| Art. 25      | **Privacy by design and by default**                                 | Provides a technical layer that fits into a privacy-by-design architecture                       | Architecture and policy decisions are still your responsibility                 |
-| Art. 32      | **Security of processing**                                           | Recognised technical measure under Recital 83 (pseudonymisation)                                 | One control among many; doesn't replace access control, logging, encryption     |
-| Art. 44      | **Transfers to third countries**                                     | Reduces the cleartext PII you transfer                                                           | Pseudonymised personal data is still personal data — transfer rules still apply |
-| Art. 4(5)    | **Pseudonymisation** definition                                      | The mapping store is opaque to the cloud LLM; re-identification requires the local session       | Re-identification is possible from context for anyone with side knowledge       |
+| GDPR Article | Obligation                           | Where pseudonym-mcp helps                                                                  | Where it doesn't                                                                |
+| ------------ | ------------------------------------ | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------- |
+| Art. 5(1)(c) | **Data minimisation**                | Strips detected direct identifiers before transmission                                     | Doesn't minimise context, structure, or undetected PII                          |
+| Art. 25      | **Privacy by design and by default** | Provides a technical layer that fits into a privacy-by-design architecture                 | Architecture and policy decisions are still your responsibility                 |
+| Art. 32      | **Security of processing**           | Recognised technical measure under Recital 83 (pseudonymisation)                           | One control among many; doesn't replace access control, logging, encryption     |
+| Art. 44      | **Transfers to third countries**     | Reduces the cleartext PII you transfer                                                     | Pseudonymised personal data is still personal data — transfer rules still apply |
+| Art. 4(5)    | **Pseudonymisation** definition      | The mapping store is opaque to the cloud LLM; re-identification requires the local session | Re-identification is possible from context for anyone with side knowledge       |
 
 > **The honest bottom line:** pseudonymisation under GDPR Art. 4(5) is **not** anonymisation. The data remains personal data in your system, and Art. 44 transfer obligations are not switched off just because you tokenised the name field.
 
@@ -100,17 +100,19 @@ In every row of this table, pseudonym-mcp is a useful **building block**. None o
 ```
 Your App / Claude Desktop
         │
-        │  prompt with PII
+        │  explicit mask_text tool call with PII
         ▼
 ┌─────────────────────────┐
 │      pseudonym-mcp      │
 │                         │
 │  Phase 1: Regex NER     │  ← SSN, CREDIT_CARD, EMAIL, PHONE (en)
-│                         │  ← PESEL, IBAN, EMAIL, PHONE (pl)
+│                         │  ← PESEL, IBAN, EMAIL, PHONE, NIP (pl)
 │  Phase 2: Ollama NER    │  ← PERSON, ORG  (local LLM)
 │  MappingStore (session) │  ← [TAG:N] ↔ original value
 └────────────┬────────────┘
-             │  sanitised prompt (detected PII → tokens)
+             │  masked text returned to the client/agent
+             ▼
+      Your workflow sends the masked text
              ▼
       Cloud LLM API
       (Claude / GPT-4 / Gemini)
@@ -165,14 +167,14 @@ In Claude Code you type:
 Use mask_text on this note, then summarise the key points of the meeting.
 ```
 
-**pseudonym-mcp replaces detected PII locally before the prompt goes upstream:**
+**First, call `mask_text`; pseudonym-mcp replaces detected PII locally:**
 
 ```
 Meeting with [PERSON:1] ([PESEL:1]) from [ORG:1].
 We discussed a contract for 45 000 zł. Contact: [EMAIL:1]
 ```
 
-**Claude responds (working from tokens):**
+**Then ask Claude to work from the masked text. Claude responds with tokens:**
 
 ```
 Meeting with [PERSON:1] from [ORG:1] covered a contract
@@ -186,7 +188,7 @@ Meeting with Jan Kowalski from Acme sp. z o.o. covered
 a contract for 45 000 zł. Follow up via jan.kowalski@acme.pl
 ```
 
-The cloud provider saw the structure of the meeting and the amount — but not the detected name, PESEL, organisation, or email in cleartext. The swap happens on your machine.
+If the masked text is what you send upstream, the cloud provider sees the structure of the meeting and the amount — but not the detected name, PESEL, organisation, or email in cleartext. The swap happens on your machine.
 
 ### Obsidian vault with `session_id`
 
@@ -205,7 +207,9 @@ The `session_id` keeps the token map alive for the session — the same `[PERSON
 
 ## MCP Prompt Templates
 
-pseudonym-mcp ships two built-in prompt templates that chain masking, an LLM task, and unmasking into a single workflow — no glue code needed.
+pseudonym-mcp ships two built-in prompt templates that describe a mask → task → unmask workflow.
+
+**Important:** MCP prompt templates are convenience helpers, not a privacy boundary. Inline prompt arguments may be visible to the host client or model before tool masking happens. For strongest privacy, call `mask_text` directly first, then use the returned `masked_text` in your LLM prompt.
 
 ### `pseudonymize_task` — inline text
 
@@ -213,7 +217,7 @@ pseudonym-mcp ships two built-in prompt templates that chain masking, an LLM tas
 /pseudonymize_task text="Meeting with Jan Kowalski (PESEL: 90010112318). Contract: 45 000 zł." task="Extract action items"
 ```
 
-What happens:
+Intended workflow:
 
 1. pseudonym-mcp masks detected PII locally → `[PERSON:1]`, `[PESEL:1]`
 2. Claude processes the masked text
@@ -229,7 +233,7 @@ Optional `lang` argument: `en` (default) or `pl`.
 /privacy_scan_file filePath="/Users/me/contracts/nda.pdf" task="Summarise obligations and deadlines"
 ```
 
-What happens:
+Intended workflow:
 
 1. macos-vision-mcp extracts text from the file on-device
 2. pseudonym-mcp masks detected PII locally
@@ -281,7 +285,8 @@ Restart your client. The `mask_text` and `unmask_text` tools appear automaticall
 {
   "session_id": "3f2a1b...",
   "masked_text": "[PERSON:1] (SSN: [SSN:1]) works at [ORG:1].",
-  "auto_unmask": false
+  "auto_unmask": false,
+  "ner_status": "ready"
 }
 ```
 
@@ -310,15 +315,15 @@ Restart your client. The `mask_text` and `unmask_text` tools appear automaticall
 }
 ```
 
-| Key                | Values                       | Default                  | Description                                                                          |
-| ------------------ | ---------------------------- | ------------------------ | ------------------------------------------------------------------------------------ |
-| `lang`             | `en`, `pl`                   | `en`                     | Language pack for regex rules                                                        |
-| `engines`          | `regex` \| `llm` \| `hybrid` | `hybrid`                 | Which NER engines to run                                                             |
-| `ollamaModel`      | any Ollama model name        | `llama3`                 | Local LLM for entity detection                                                       |
-| `ollamaBaseUrl`    | URL                          | `http://localhost:11434` | Ollama API endpoint                                                                  |
-| `autoUnmask`       | `true` \| `false`            | `false`                  | Auto-restore tokens in LLM responses                                                 |
-| `strictValidation` | `true` \| `false`            | `true`                   | Enable checksum / format validation (SSN area check, Luhn for cards, PESEL checksum) |
-| `customLiterals`   | `string[]`                   | `[]`                     | Specific strings always redacted regardless of engine (names, IDs, phone numbers)    |
+| Key                | Values                       | Default                  | Description                                                                               |
+| ------------------ | ---------------------------- | ------------------------ | ----------------------------------------------------------------------------------------- |
+| `lang`             | `en`, `pl`                   | `en`                     | Language pack for regex rules                                                             |
+| `engines`          | `regex` \| `llm` \| `hybrid` | `hybrid`                 | Which NER engines to run                                                                  |
+| `ollamaModel`      | any Ollama model name        | `llama3`                 | Local LLM for entity detection                                                            |
+| `ollamaBaseUrl`    | URL                          | `http://localhost:11434` | Ollama API endpoint                                                                       |
+| `autoUnmask`       | `true` \| `false`            | `false`                  | Report the preferred unmask behavior to clients; this server does not intercept responses |
+| `strictValidation` | `true` \| `false`            | `true`                   | Enable checksum / format validation (SSN area check, Luhn for cards, PESEL checksum)      |
+| `customLiterals`   | `string[]`                   | `[]`                     | Specific strings always redacted regardless of engine (names, IDs, phone numbers)         |
 
 ### CLI flags
 
@@ -335,7 +340,7 @@ pseudonym-mcp --lang en --engines regex --ollama-model llama3 --auto-unmask
 | `--ollama-model`    | Ollama model to use for NER                                                 |
 | `--ollama-base-url` | Ollama base URL                                                             |
 | `--config`          | Path to a custom JSON config file                                           |
-| `--auto-unmask`     | Enable automatic response de-tokenisation                                   |
+| `--auto-unmask`     | Set `auto_unmask: true` in `mask_text` output for clients that honor it     |
 | `--custom-literals` | Comma-separated strings to always redact, e.g. `"Jan Kowalski,78091512345"` |
 
 ### Claude Code
@@ -386,15 +391,7 @@ Detection is best-effort. The patterns below are what the tool **looks for** —
 
 Custom literals are applied after the regex phase and before LLM NER, regardless of engine mode. Longest literals are matched first to prevent partial substitution.
 
-### Global (all languages)
-
-| Tag     | Pattern                              | Validation   |
-| ------- | ------------------------------------ | ------------ |
-| `EMAIL` | RFC 5321-compatible                  | Format match |
-| `IBAN`  | Generic IBAN (`CC` + 2 check + BBAN) | Format match |
-| `IP`    | IPv4 (all octets 0–255)              | Format match |
-| `URL`   | `http://` / `https://` URLs          | Format match |
-| `PHONE` | International `+CC` prefix format    | Format match |
+The tables below list patterns active in the current `Engine` pipeline. Some additional pattern modules exist in the repository for experimentation, but they are not advertised here unless the language rules actually use them.
 
 ### English (`--lang en`, default)
 
@@ -404,22 +401,20 @@ Custom literals are applied after the regex phase and before LLM NER, regardless
 | `CREDIT_CARD` | 13–19 digits (Visa, Mastercard, Amex, Discover)     | Luhn checksum                              |
 | `EMAIL`       | RFC 5321-compatible                                 | Format match                               |
 | `PHONE`       | `+1 (XXX) XXX-XXXX`, `XXX-XXX-XXXX`, `XXX.XXX.XXXX` | Format match                               |
-| `ZIP_CODE`    | `XXXXX` or `XXXXX-XXXX` (paranoid mode only)        | Format match                               |
 | `PERSON`      | Full names                                          | Ollama NER (hybrid / llm engines)          |
 | `ORG`         | Company / organisation names                        | Ollama NER (hybrid / llm engines)          |
 
 ### Polish (`--lang pl`)
 
-| Tag           | Pattern                                                          | Validation                                      |
-| ------------- | ---------------------------------------------------------------- | ----------------------------------------------- |
-| `PESEL`       | 11-digit national ID                                             | Full checksum (weights `[1,3,7,9,1,3,7,9,1,3]`) |
-| `IBAN`        | `PL` + 26 digits, compact or spaced                              | Format match                                    |
-| `EMAIL`       | RFC 5321-compatible                                              | Format match                                    |
-| `PHONE`       | `+48` / `0048` prefix, 9-digit mobile, landline `(XX) XXX-XX-XX` | Format match                                    |
-| `NIP`         | 10-digit tax ID (strict / paranoid modes)                        | Checksum (weights `[6,5,7,2,3,4,5,6,7]`)        |
-| `POSTAL_CODE` | `XX-XXX` (paranoid mode only)                                    | Format match                                    |
-| `PERSON`      | Full names                                                       | Ollama NER (hybrid / llm engines)               |
-| `ORG`         | Company / organisation names                                     | Ollama NER (hybrid / llm engines)               |
+| Tag      | Pattern                                                          | Validation                                      |
+| -------- | ---------------------------------------------------------------- | ----------------------------------------------- |
+| `PESEL`  | 11-digit national ID                                             | Full checksum (weights `[1,3,7,9,1,3,7,9,1,3]`) |
+| `IBAN`   | `PL` + 26 digits, compact or spaced                              | Format match                                    |
+| `EMAIL`  | RFC 5321-compatible                                              | Format match                                    |
+| `PHONE`  | `+48` / `0048` prefix, 9-digit mobile, landline `(XX) XXX-XX-XX` | Format match                                    |
+| `NIP`    | 10-digit tax ID (strict / paranoid modes)                        | Checksum (weights `[6,5,7,2,3,4,5,6,7]`)        |
+| `PERSON` | Full names                                                       | Ollama NER (hybrid / llm engines)               |
+| `ORG`    | Company / organisation names                                     | Ollama NER (hybrid / llm engines)               |
 
 ## Language Detection
 
@@ -453,7 +448,7 @@ It is a building block for future multi-language and auto-select modes.
 | `llm`              | Yes                     | No                     | Yes                  |
 | `hybrid` (default) | Yes (graceful fallback) | Yes                    | Yes                  |
 
-In `hybrid` mode, Ollama runs after the regex pass so the LLM never sees already-tokenised values. If Ollama is unreachable, the server logs a warning to stderr and returns the regex-only masked text — no crash, no hang.
+In `hybrid` mode, Ollama runs after the regex pass, so the local NER model receives already-tokenised structured identifiers. If Ollama is unreachable, the server logs a warning to stderr and returns the regex-only masked text — no crash, no hang.
 
 ## Privacy & Security notes
 
@@ -492,7 +487,7 @@ git clone https://github.com/woladi/pseudonym-mcp
 cd pseudonym-mcp
 npm install
 npm run build    # tsc compile
-npm test         # vitest (134 tests, no Ollama required)
+npm test         # vitest (no Ollama required)
 ```
 
 The test suite runs fully offline — Ollama calls are injected via constructor and mocked in all tests. No live LLM required.
