@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { ConfigManager } from '../src/config/manager.js'
 import { MappingStore } from '../src/core/mapping-store.js'
 import { Engine } from '../src/core/engine.js'
+import type { OllamaClient } from '../src/core/ollama-client.js'
 
 beforeEach(() => {
   ConfigManager.reset()
@@ -77,7 +78,7 @@ describe('Regex regression test — all patterns must work', () => {
       extractEntities: async () => [],
     }
 
-    const engine = new Engine(new MappingStore(), mockOllamaClient as any)
+    const engine = new Engine(new MappingStore(), mockOllamaClient as unknown as OllamaClient)
     const input = 'IBAN: PL61109010140000071219812874, tel: +48 601 234 567'
     const result = await engine.process(input)
 

@@ -6,6 +6,7 @@ import { OllamaClient } from '../core/ollama-client.js'
 import { MappingStore } from '../core/mapping-store.js'
 import { ConfigManager } from '../config/manager.js'
 import { pseudonymizeTaskMessage, privacyScanFileMessage } from './prompts.js'
+import { APP_VERSION } from '../version.js'
 
 const NER_WARNING: Record<NerStatus, string | null> = {
   ready: null,
@@ -29,7 +30,7 @@ function getOrCreateEngine(sessionId: string): Engine {
 export function createMcpServer(): McpServer {
   const server = new McpServer({
     name: 'pseudonym-mcp',
-    version: '0.1.0',
+    version: APP_VERSION,
   })
 
   server.tool(
@@ -146,7 +147,8 @@ in the session identified by session_id.`,
   server.registerPrompt(
     'pseudonymize_task',
     {
-      description: 'Mask PII in text, run a task, then restore originals — all locally',
+      description:
+        'Convenience workflow for masking text, running a task, and restoring originals. Not a privacy boundary for prompt arguments.',
       argsSchema: {
         text: z.string().describe('Text containing sensitive data'),
         task: z.string().describe('What to do with the anonymized text'),
@@ -170,7 +172,7 @@ in the session identified by session_id.`,
     'privacy_scan_file',
     {
       description:
-        'Extract text from a file via macos-vision-mcp (macOS only), anonymize PII, process with the LLM, then restore originals',
+        'Convenience workflow for OCR, masking, task execution, and restore. Not a privacy boundary for extracted prompt content.',
       argsSchema: {
         filePath: z.string().describe('Path to the file to scan (PDF, image, etc.)'),
         task: z

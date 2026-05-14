@@ -38,6 +38,12 @@ describe('pseudonymizeTaskMessage', () => {
     expect(msg).toContain('session_id')
     expect(msg).toContain('unmask_text')
   })
+
+  it('warns that prompt templates are not the strongest privacy boundary', () => {
+    const msg = pseudonymizeTaskMessage({ text: 'x', task: 'y' })
+    expect(msg).toContain('Privacy note')
+    expect(msg).toContain('call the mask_text tool directly')
+  })
 })
 
 describe('privacyScanFileMessage', () => {
@@ -76,5 +82,11 @@ describe('privacyScanFileMessage', () => {
     const msg = privacyScanFileMessage({ filePath: '/tmp/file.pdf' })
     expect(msg).toContain('unmask_text')
     expect(msg).toContain('session_id')
+  })
+
+  it('warns to extract and mask explicitly for strongest privacy', () => {
+    const msg = privacyScanFileMessage({ filePath: '/tmp/file.pdf' })
+    expect(msg).toContain('Privacy note')
+    expect(msg).toContain('extract and mask content explicitly')
   })
 })
