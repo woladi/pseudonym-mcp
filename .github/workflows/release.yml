@@ -29,6 +29,11 @@ on:
   push:
     branches: [master]
   workflow_dispatch:
+    inputs:
+      publish_registry:
+        description: 'Re-publish the current server.json to the MCP registry (npm published but the registry step failed)'
+        type: boolean
+        default: false
 
 # contents:      changesets/action commits the version PR and creates the
 #                GitHub Release at publish time
@@ -99,7 +104,11 @@ jobs:
   publish-registry:
     name: Publish to MCP Registry
     needs: release
-    if: needs.release.outputs.published == 'true'
+    # The registry validates the manifest only at publish time, i.e. after npm
+    # has already gone out — so this job can fail on its own and leave the
+    # registry a version behind. `workflow_dispatch` with publish_registry
+    # re-runs just this half against whatever server.json currently says.
+    if: needs.release.outputs.published == 'true' || inputs.publish_registry
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -109,11 +118,24 @@ jobs:
       - uses: actions/checkout@v4
 
       # server.json is bumped in the version PR by scripts/sync-version.js, so
-      # by now it should already match. Fail loudly rather than publish a stale
-      # entry that points at a version npm does not have.
-      - name: Verify server.json matches the published version
+      # after a release it should already match. On a manual re-run there is no
+      # released version to compare against and server.json itself is the
+      # source of truth.
+      - name: Resolve the version to publish
+        id: target
         env:
-          VERSION: ${{ needs.release.outputs.version }}
+          RELEASED: ${{ needs.release.outputs.version }}
+        run: |
+          VERSION="${RELEASED:-$(node -p "require('./server.json').version")}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "publishing $VERSION"
+
+      # Fail loudly rather than point the registry at something npm does not
+      # have — either because the manifest is stale, or because a manual re-run
+      # was fired before the matching npm publish landed.
+      - name: Verify server.json matches a published npm version
+        env:
+          VERSION: ${{ steps.target.outputs.version }}
         run: |
           node -e '
             const s = require("./server.json");
@@ -125,6 +147,7 @@ jobs:
             }
             console.log(`server.json is in sync at ${v}`);
           '
+          npm view "pseudonym-mcp@$VERSION" version
 
       - name: Install mcp-publisher
         run: |
