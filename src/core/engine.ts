@@ -3,7 +3,8 @@ import { OllamaClient, type OllamaEntity } from './ollama-client.js'
 import { ConfigManager } from '../config/manager.js'
 import type { LanguageRules } from '../languages/types.js'
 import { findCandidates } from './recognizer.js'
-import type { EngineLevel } from '../patterns/types.js'
+import { rulesForLocale, type EngineLevel } from '../patterns/types.js'
+import { allPatterns } from '../patterns/index.js'
 import { EnglishRules } from '../languages/en/rules.js'
 import { PolishRules } from '../languages/pl/rules.js'
 
@@ -21,6 +22,16 @@ export interface ProcessResult {
 const LANGUAGE_MAP: Record<string, LanguageRules> = {
   en: EnglishRules,
   pl: PolishRules,
+}
+
+/** Locales that some rule actually covers; anything else falls back to English. */
+const KNOWN_LOCALES = new Set(allPatterns.flatMap((r) => r.locales ?? []))
+
+function rulesFor(lang: string, extraLocales: string[]): LanguageRules {
+  const locale = KNOWN_LOCALES.has(lang as never) ? lang : 'en'
+  const cached = LANGUAGE_MAP[locale]
+  if (cached && extraLocales.length === 0) return cached
+  return { patterns: rulesForLocale(allPatterns, locale, extraLocales) }
 }
 
 /**
@@ -76,7 +87,7 @@ export class Engine {
    */
   async processWithStatus(text: string, extraLiterals?: string[]): Promise<ProcessResult> {
     const cfg = ConfigManager.getInstance().get()
-    const rules = LANGUAGE_MAP[cfg.lang] ?? EnglishRules
+    const rules = rulesFor(cfg.lang, cfg.extraLocales)
 
     let result = text
 

@@ -30,6 +30,10 @@ program
     'Report auto_unmask=true in tool output for clients that honor it',
     false,
   )
+  .option(
+    '--extra-locales <list>',
+    'Comma-separated locales to recognize alongside --lang, e.g. de,it,uk',
+  )
   .option('--custom-literals <items>', 'Comma-separated strings to always redact')
   .action(
     async (opts: {
@@ -40,6 +44,7 @@ program
       sensitivity: string
       config?: string
       autoUnmask: boolean
+      extraLocales?: string
       customLiterals?: string
     }) => {
       const engines: EngineMode = VALID_ENGINES.includes(opts.engines as EngineMode)
@@ -58,6 +63,12 @@ program
         sensitivity,
         config: opts.config,
         autoUnmask: opts.autoUnmask,
+        extraLocales: opts.extraLocales
+          ? opts.extraLocales
+              .split(',')
+              .map((s) => s.trim().toLowerCase())
+              .filter(Boolean)
+          : undefined,
         customLiterals: opts.customLiterals
           ? opts.customLiterals
               .split(',')

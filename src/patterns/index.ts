@@ -18,6 +18,15 @@ import { ssnRule } from './locale/en/ssn.js'
 import { creditCardRule } from './locale/en/credit-card.js'
 import { usPhoneRule } from './locale/en/phone.js'
 import { usZipCodeRule } from './locale/en/zip-code.js'
+import { deTaxIdRule, dePostalCodeRule } from './locale/de/tax-id.js'
+import { codiceFiscaleRule } from './locale/it/fiscal-code.js'
+import { esNifRule, esNieRule } from './locale/es/nif.js'
+import { frNirRule } from './locale/fr/nir.js'
+import { nlBsnRule } from './locale/nl/bsn.js'
+import { rodneCisloRule } from './locale/cz/rodne-cislo.js'
+import { personnummerRule } from './locale/se/personnummer.js'
+import { hetuRule } from './locale/fi/hetu.js'
+import { nhsRule, ninoRule, ukPostcodeRule } from './locale/uk/identifiers.js'
 import type { PatternRule } from './types.js'
 
 export * from './types.js'
@@ -42,6 +51,15 @@ export * from './locale/en/ssn.js'
 export * from './locale/en/credit-card.js'
 export * from './locale/en/phone.js'
 export * from './locale/en/zip-code.js'
+export * from './locale/de/tax-id.js'
+export * from './locale/it/fiscal-code.js'
+export * from './locale/es/nif.js'
+export * from './locale/fr/nir.js'
+export * from './locale/nl/bsn.js'
+export * from './locale/cz/rodne-cislo.js'
+export * from './locale/se/personnummer.js'
+export * from './locale/fi/hetu.js'
+export * from './locale/uk/identifiers.js'
 
 export const allPatterns: PatternRule[] = [
   // Global
@@ -68,4 +86,18 @@ export const allPatterns: PatternRule[] = [
   creditCardRule,
   usPhoneRule,
   usZipCodeRule,
+  // Other EU locales
+  deTaxIdRule,
+  dePostalCodeRule,
+  codiceFiscaleRule,
+  esNifRule,
+  esNieRule,
+  frNirRule,
+  nlBsnRule,
+  rodneCisloRule,
+  personnummerRule,
+  hetuRule,
+  nhsRule,
+  ninoRule,
+  ukPostcodeRule,
 ]

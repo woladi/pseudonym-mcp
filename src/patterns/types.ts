@@ -98,13 +98,14 @@ export function maxScore(rule: PatternRule): number {
  * Order does not affect matching (every candidate is scored), but keeping the
  * specific rules first makes diagnostics and lookups predictable.
  */
-export function rulesForLocale(rules: PatternRule[], locale: string): PatternRule[] {
-  const applies = (r: PatternRule) =>
-    r.locales === null || r.locales.includes(locale as SupportedLocale)
-  return [
-    ...rules.filter((r) => r.locales !== null && applies(r)),
-    ...rules.filter((r) => r.locales === null),
-  ]
+export function rulesForLocale(
+  rules: PatternRule[],
+  locale: string,
+  extraLocales: string[] = [],
+): PatternRule[] {
+  const wanted = new Set([locale, ...extraLocales])
+  const applies = (r: PatternRule) => r.locales !== null && r.locales.some((l) => wanted.has(l))
+  return [...rules.filter(applies), ...rules.filter((r) => r.locales === null)]
 }
 
 /** Rules strong enough to fire at the given sensitivity level. */
