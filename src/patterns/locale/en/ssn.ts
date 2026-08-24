@@ -20,9 +20,8 @@ export const ssnRule: PatternRule = {
   id: 'en.ssn',
   entityType: 'SSN',
   // US Social Security Number: XXX-XX-XXXX (required dashes to avoid false positives)
-  pattern: /\b\d{3}-\d{2}-\d{4}\b/g,
+  patterns: [{ name: 'SSN (dashed)', regex: /\b\d{3}-\d{2}-\d{4}\b/g, score: 0.5 }],
   locales: ['en'],
-  engines: ['balanced', 'strict', 'paranoid'],
   description: 'US Social Security Number (XXX-XX-XXXX) with area-number validation',
   validate: ssnValidate,
 }

@@ -7,14 +7,19 @@ import { emailRule } from '../src/patterns/global/email.js'
 import { peselRule } from '../src/patterns/locale/pl/pesel.js'
 import { plPhoneRule } from '../src/patterns/locale/pl/phone.js'
 import { ssnRule } from '../src/patterns/locale/en/ssn.js'
-import type { EngineLevel } from '../src/patterns/types.js'
+import { ENGINE_THRESHOLDS, maxScore, type PatternRule } from '../src/patterns/types.js'
 
-const VALID_ENGINE_LEVELS: EngineLevel[] = ['balanced', 'strict', 'paranoid']
-
-// Helper: test a pattern against a string and return all matches
-function findMatches(pattern: RegExp, text: string): string[] {
-  const re = new RegExp(pattern.source, pattern.flags)
-  return [...text.matchAll(re)].map((m) => m[0])
+// Helper: run every variant of a rule against a string and return all matches
+function findMatches(rule: PatternRule, text: string): string[] {
+  // Several variants of one rule can cover the same span — count it once.
+  return [
+    ...new Set(
+      rule.patterns.flatMap((variant) => {
+        const re = new RegExp(variant.regex.source, variant.regex.flags)
+        return [...text.matchAll(re)].map((m) => m[0])
+      }),
+    ),
+  ]
 }
 
 describe('allPatterns', () => {
@@ -29,10 +34,9 @@ describe('allPatterns', () => {
       expect(p.id.length).toBeGreaterThan(0)
       expect(typeof p.entityType).toBe('string')
       expect(p.entityType.length).toBeGreaterThan(0)
-      expect(p.pattern).toBeInstanceOf(RegExp)
+      expect(Array.isArray(p.patterns)).toBe(true)
+      expect(p.patterns.length).toBeGreaterThan(0)
       expect(typeof p.description).toBe('string')
-      expect(Array.isArray(p.engines)).toBe(true)
-      expect(p.engines.length).toBeGreaterThan(0)
       // locales is null (global) or an array
       expect(p.locales === null || Array.isArray(p.locales)).toBe(true)
     }
@@ -44,16 +48,29 @@ describe('allPatterns', () => {
     expect(unique.size).toBe(ids.length)
   })
 
-  it('all patterns have the g flag', () => {
+  it('all pattern variants have the g flag', () => {
     for (const p of allPatterns) {
-      expect(p.pattern.flags).toContain('g')
+      for (const variant of p.patterns) {
+        expect(variant.regex.flags).toContain('g')
+      }
     }
   })
 
-  it('all engine values are valid EngineLevel', () => {
+  it('all variant scores are within [0, 1] and named', () => {
     for (const p of allPatterns) {
-      for (const level of p.engines) {
-        expect(VALID_ENGINE_LEVELS).toContain(level)
+      for (const variant of p.patterns) {
+        expect(variant.score).toBeGreaterThan(0)
+        expect(variant.score).toBeLessThanOrEqual(1)
+        expect(variant.name.length).toBeGreaterThan(0)
+      }
+    }
+  })
+
+  it('context words, where present, are non-empty strings', () => {
+    for (const p of allPatterns) {
+      for (const word of p.context ?? []) {
+        expect(typeof word).toBe('string')
+        expect(word.trim().length).toBeGreaterThan(0)
       }
     }
   })
@@ -92,8 +109,17 @@ describe('engine presets', () => {
     }
   })
 
-  it('paranoidPatterns contains all patterns (every pattern has paranoid)', () => {
+  it('paranoidPatterns contains all patterns (its threshold is the lowest)', () => {
     expect(paranoidPatterns.length).toBe(allPatterns.length)
+  })
+
+  it('presets follow from scores rather than a hand-kept list', () => {
+    for (const p of balancedPatterns) {
+      expect(maxScore(p)).toBeGreaterThanOrEqual(ENGINE_THRESHOLDS.balanced)
+    }
+    for (const p of strictPatterns) {
+      expect(maxScore(p)).toBeGreaterThanOrEqual(ENGINE_THRESHOLDS.strict)
+    }
   })
 
   it('balancedPatterns includes email and pesel', () => {
@@ -112,70 +138,67 @@ describe('engine presets', () => {
 
 describe('emailRule', () => {
   it('matches a standard email', () => {
-    expect(findMatches(emailRule.pattern, 'user@example.com')).toEqual(['user@example.com'])
+    expect(findMatches(emailRule, 'user@example.com')).toEqual(['user@example.com'])
   })
 
   it('matches an email with plus-addressing', () => {
-    expect(findMatches(emailRule.pattern, 'user+tag@domain.org')).toEqual(['user+tag@domain.org'])
+    expect(findMatches(emailRule, 'user+tag@domain.org')).toEqual(['user+tag@domain.org'])
   })
 
   it('matches an email embedded in text', () => {
-    const matches = findMatches(emailRule.pattern, 'Contact me at hello@world.pl for details.')
+    const matches = findMatches(emailRule, 'Contact me at hello@world.pl for details.')
     expect(matches).toEqual(['hello@world.pl'])
   })
 
   it('does not match a string without @', () => {
-    expect(findMatches(emailRule.pattern, 'notanemail.com')).toEqual([])
+    expect(findMatches(emailRule, 'notanemail.com')).toEqual([])
   })
 })
 
 describe('peselRule', () => {
   it('matches a valid PESEL', () => {
-    const matches = findMatches(peselRule.pattern, '90010112318')
+    const matches = findMatches(peselRule, '90010112318')
     expect(matches).toEqual(['90010112318'])
   })
 
   it('does not match a 10-digit number', () => {
-    expect(findMatches(peselRule.pattern, '1234567890')).toEqual([])
+    expect(findMatches(peselRule, '1234567890')).toEqual([])
   })
 
   it('does not match a 12-digit number', () => {
-    expect(findMatches(peselRule.pattern, '123456789012')).toEqual([])
+    expect(findMatches(peselRule, '123456789012')).toEqual([])
   })
 
-  it('has no validate function (checksum not required)', () => {
-    expect(peselRule.validate).toBeUndefined()
-  })
-
-  it('matches an 11-digit number with invalid checksum', () => {
-    expect(findMatches(peselRule.pattern, '85042312345')).toHaveLength(1)
+  it('still matches an 11-digit number with an invalid checksum', () => {
+    // The loose variant keeps recall; scoring decides whether it is masked.
+    expect(findMatches(peselRule, '85042312345').length).toBeGreaterThan(0)
   })
 })
 
 describe('plPhoneRule', () => {
   it('matches +48 with spaces', () => {
-    const matches = findMatches(plPhoneRule.pattern, '+48 123 456 789')
+    const matches = findMatches(plPhoneRule, '+48 123 456 789')
     expect(matches.length).toBeGreaterThan(0)
   })
 
   it('matches +48 without spaces', () => {
-    const matches = findMatches(plPhoneRule.pattern, '+48123456789')
+    const matches = findMatches(plPhoneRule, '+48123456789')
     expect(matches.length).toBeGreaterThan(0)
   })
 
   it('matches 9-digit mobile number starting with 5', () => {
-    const matches = findMatches(plPhoneRule.pattern, '512345678')
+    const matches = findMatches(plPhoneRule, '512345678')
     expect(matches.length).toBeGreaterThan(0)
   })
 })
 
 describe('ssnRule', () => {
   it('matches a valid SSN', () => {
-    expect(findMatches(ssnRule.pattern, '123-45-6789')).toEqual(['123-45-6789'])
+    expect(findMatches(ssnRule, '123-45-6789')).toEqual(['123-45-6789'])
   })
 
   it('matches SSN embedded in text', () => {
-    const matches = findMatches(ssnRule.pattern, 'SSN: 123-45-6789.')
+    const matches = findMatches(ssnRule, 'SSN: 123-45-6789.')
     expect(matches).toEqual(['123-45-6789'])
   })
 

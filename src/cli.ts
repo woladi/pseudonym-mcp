@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 import { Command } from 'commander'
 import { ConfigManager, type EngineMode } from './config/manager.js'
+import type { EngineLevel } from './patterns/types.js'
 import { printOllamaStatus } from './setup/check-ollama.js'
 import { startServer } from './mcp/server.js'
 import { APP_VERSION } from './version.js'
 
 const VALID_ENGINES: EngineMode[] = ['regex', 'llm', 'hybrid']
+const VALID_SENSITIVITY: EngineLevel[] = ['balanced', 'strict', 'paranoid']
 
 const program = new Command()
 
@@ -17,6 +19,11 @@ program
   .option('--engines <mode>', 'Processing engines: regex | llm | hybrid', 'hybrid')
   .option('--ollama-model <model>', 'Ollama model for LLM NER', 'llama3')
   .option('--ollama-base-url <url>', 'Ollama base URL', 'http://localhost:11434')
+  .option(
+    '--sensitivity <level>',
+    'How much confidence a match needs: balanced | strict | paranoid',
+    'balanced',
+  )
   .option('--config <path>', 'Path to a JSON config file (default: ./mcp-config.json)')
   .option(
     '--auto-unmask',
@@ -30,6 +37,7 @@ program
       engines: string
       ollamaModel: string
       ollamaBaseUrl: string
+      sensitivity: string
       config?: string
       autoUnmask: boolean
       customLiterals?: string
@@ -38,11 +46,16 @@ program
         ? (opts.engines as EngineMode)
         : 'hybrid'
 
+      const sensitivity: EngineLevel = VALID_SENSITIVITY.includes(opts.sensitivity as EngineLevel)
+        ? (opts.sensitivity as EngineLevel)
+        : 'balanced'
+
       ConfigManager.init({
         lang: opts.lang,
         engines,
         ollamaModel: opts.ollamaModel,
         ollamaBaseUrl: opts.ollamaBaseUrl,
+        sensitivity,
         config: opts.config,
         autoUnmask: opts.autoUnmask,
         customLiterals: opts.customLiterals

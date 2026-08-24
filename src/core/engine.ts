@@ -2,6 +2,8 @@ import { MappingStore } from './mapping-store.js'
 import { OllamaClient, type OllamaEntity } from './ollama-client.js'
 import { ConfigManager } from '../config/manager.js'
 import type { LanguageRules } from '../languages/types.js'
+import { findCandidates } from './recognizer.js'
+import type { EngineLevel } from '../patterns/types.js'
 import { EnglishRules } from '../languages/en/rules.js'
 import { PolishRules } from '../languages/pl/rules.js'
 
@@ -79,7 +81,7 @@ export class Engine {
     let result = text
 
     if (cfg.engines === 'regex' || cfg.engines === 'hybrid') {
-      result = this.applyRegexRules(result, rules, cfg.strictValidation)
+      result = this.applyRegexRules(result, rules, cfg.strictValidation, cfg.sensitivity)
     }
 
     const allLiterals = [...(cfg.customLiterals ?? []), ...(extraLiterals ?? [])]
@@ -108,20 +110,26 @@ export class Engine {
     return result
   }
 
-  private applyRegexRules(text: string, rules: LanguageRules, strictValidation: boolean): string {
+  /**
+   * Mask every pattern match that clears the sensitivity threshold.
+   *
+   * Candidates from all rules are collected first and overlaps resolved by
+   * confidence, then substitutions are applied right-to-left so earlier
+   * offsets stay valid. Applying rules one after another instead would let
+   * whichever rule happens to run first claim a span it scores worst on.
+   */
+  private applyRegexRules(
+    text: string,
+    rules: LanguageRules,
+    strictValidation: boolean,
+    level: EngineLevel,
+  ): string {
+    const candidates = findCandidates(text, rules.patterns, { level, strictValidation })
+
     let result = text
-
-    for (const patternDef of rules.patterns) {
-      // Clone the regex to reset lastIndex — /g regexes are stateful
-      const regex = new RegExp(patternDef.regex.source, patternDef.regex.flags)
-
-      result = result.replace(regex, (match) => {
-        if (patternDef.validate && strictValidation) {
-          const clean = match.replace(/\s/g, '')
-          if (!patternDef.validate(clean)) return match
-        }
-        return this.store.add(patternDef.tag, match)
-      })
+    for (const candidate of [...candidates].reverse()) {
+      const token = this.store.add(candidate.entityType, candidate.text)
+      result = result.slice(0, candidate.start) + token + result.slice(candidate.end)
     }
 
     return result

@@ -1,6 +1,8 @@
 import { readFileSync, existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 
+import type { EngineLevel } from '../patterns/types.js'
+
 export type EngineMode = 'regex' | 'llm' | 'hybrid'
 
 export interface Config {
@@ -11,6 +13,12 @@ export interface Config {
   autoUnmask: boolean
   strictValidation: boolean
   customLiterals: string[]
+  /**
+   * How much confidence a match needs before it is masked:
+   * balanced (default) masks only high-confidence matches, strict adds
+   * weaker context-dependent ones, paranoid masks everything a rule sees.
+   */
+  sensitivity: EngineLevel
 }
 
 export interface CliArgs {
@@ -22,6 +30,7 @@ export interface CliArgs {
   autoUnmask?: boolean
   strictValidation?: boolean
   customLiterals?: string[]
+  sensitivity?: EngineLevel
 }
 
 const DEFAULTS: Config = {
@@ -32,6 +41,7 @@ const DEFAULTS: Config = {
   autoUnmask: false,
   strictValidation: true,
   customLiterals: [],
+  sensitivity: 'balanced',
 }
 
 /**

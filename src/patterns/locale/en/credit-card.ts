@@ -27,9 +27,8 @@ export const creditCardRule: PatternRule = {
   entityType: 'CREDIT_CARD',
   // 13–19 digits, optionally separated by spaces or dashes in groups of 4
   // Covers Visa (4xxx), Mastercard (5[1-5]xx / 2[2-7]xx), Amex (3[47]x), Discover (6xxx)
-  pattern: /\b(?:\d[ \-]*?){13,19}\b/g,
+  patterns: [{ name: 'Credit card', regex: /\b(?:\d[ \-]*?){13,19}\b/g, score: 0.5 }],
   locales: ['en'],
-  engines: ['balanced', 'strict', 'paranoid'],
   description:
     'Credit card number (13–19 digits, Luhn checksum) — Visa, Mastercard, Amex, Discover',
   validate: luhnCheck,

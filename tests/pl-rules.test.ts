@@ -1,29 +1,36 @@
 import { describe, it, expect } from 'vitest'
 import { PolishRules } from '../src/languages/pl/rules.js'
-import type { PatternDef } from '../src/languages/types.js'
+import type { PatternRule } from '../src/patterns/types.js'
 
-function findMatches(patternDef: PatternDef, text: string): string[] {
-  const regex = new RegExp(patternDef.regex.source, patternDef.regex.flags)
-  const matches: string[] = []
-  let m: RegExpExecArray | null
-  while ((m = regex.exec(text)) !== null) {
-    const raw = m[0]
-    const clean = raw.replace(/\s/g, '')
-    if (!patternDef.validate || patternDef.validate(clean)) {
-      matches.push(raw)
+function findMatches(rule: PatternRule, text: string): string[] {
+  // Variants can match the same span; report each distinct match once.
+  const matches = new Set<string>()
+  // A 'boost' checksum adds confidence but never rejects — see PatternRule.
+  const gates = rule.validate !== undefined && (rule.checksumMode ?? 'filter') === 'filter'
+  for (const variant of rule.patterns) {
+    const regex = new RegExp(variant.regex.source, variant.regex.flags)
+    let m: RegExpExecArray | null
+    while ((m = regex.exec(text)) !== null) {
+      const raw = m[0]
+      const clean = raw.replace(/\s/g, '')
+      if (!gates || rule.validate!(clean)) {
+        matches.add(raw)
+      }
     }
   }
-  return matches
+  return [...matches]
 }
 
-function getPattern(tag: string): PatternDef {
-  const def = PolishRules.patterns.find((p) => p.tag === tag)
-  if (!def) throw new Error(`Pattern for tag "${tag}" not found`)
+// Look rules up by id: several rules can share an entity type now (a generic
+// IBAN rule and the locale-specific one both emit IBAN).
+function getRule(id: string): PatternRule {
+  const def = PolishRules.patterns.find((p) => p.id === id)
+  if (!def) throw new Error(`Rule "${id}" not found`)
   return def
 }
 
 describe('PESEL', () => {
-  const def = getPattern('PESEL')
+  const def = getRule('pl.pesel')
 
   it('matches any 11-digit number', () => {
     expect(findMatches(def, '90010112318')).toHaveLength(1)
@@ -73,7 +80,7 @@ describe('PESEL', () => {
 })
 
 describe('IBAN', () => {
-  const def = getPattern('IBAN')
+  const def = getRule('pl.iban')
 
   it('matches a compact PL IBAN', () => {
     expect(findMatches(def, 'PL27114020040000300201355387')).toHaveLength(1)
@@ -119,7 +126,7 @@ describe('IBAN', () => {
 })
 
 describe('EMAIL', () => {
-  const def = getPattern('EMAIL')
+  const def = getRule('global.email')
 
   it('matches a standard email', () => {
     expect(findMatches(def, 'test@example.com')).toHaveLength(1)
@@ -139,7 +146,7 @@ describe('EMAIL', () => {
 })
 
 describe('PHONE', () => {
-  const def = getPattern('PHONE')
+  const def = getRule('pl.phone')
 
   it('matches +48 with spaces', () => {
     expect(findMatches(def, '+48 123 456 789')).toHaveLength(1)
@@ -187,7 +194,7 @@ describe('PHONE', () => {
 })
 
 describe('NIP', () => {
-  const def = getPattern('NIP')
+  const def = getRule('pl.nip')
 
   it('matches NIP in XXX-XXX-XX-XX format', () => {
     expect(findMatches(def, '526-000-00-05')).toHaveLength(1)
@@ -209,7 +216,11 @@ describe('NIP', () => {
     expect(matches[0]).toBe('NIP: 526-000-00-05')
   })
 
-  it('does not match NIP without hyphens', () => {
+  it('matches a bare 10-digit NIP whose checksum validates', () => {
+    expect(findMatches(def, '5260000005')).toContain('5260000005')
+  })
+
+  it('does not match a bare 10-digit number that fails the checksum', () => {
     expect(findMatches(def, '5260000000')).toHaveLength(0)
   })
 
@@ -219,7 +230,7 @@ describe('NIP', () => {
 })
 
 describe('PHONE — landline with +48 prefix', () => {
-  const def = getPattern('PHONE')
+  const def = getRule('pl.phone')
 
   it('captures full "+48 22 555 44 33" including prefix', () => {
     const matches = findMatches(def, '+48 22 555 44 33')

@@ -1,5 +1,5 @@
 import { allPatterns } from '../index.js'
-import type { PatternRule } from '../types.js'
+import { rulesForLevel, type PatternRule } from '../types.js'
 
-/** Patterns active in strict mode — balanced rules plus checksum-validated identifiers */
-export const strictPatterns: PatternRule[] = allPatterns.filter((p) => p.engines.includes('strict'))
+/** Rules active in strict mode — balanced rules plus weaker, context-dependent ones. */
+export const strictPatterns: PatternRule[] = rulesForLevel(allPatterns, 'strict')

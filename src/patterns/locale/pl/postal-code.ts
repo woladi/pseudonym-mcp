@@ -4,8 +4,7 @@ export const plPostalCodeRule: PatternRule = {
   id: 'pl.postal-code',
   entityType: 'POSTAL_CODE',
   // Polish postal code: XX-XXX (e.g. 00-001, 80-952)
-  pattern: /\b\d{2}-\d{3}\b/g,
+  patterns: [{ name: 'Postal code (PL)', regex: /\b\d{2}-\d{3}\b/g, score: 0.1 }],
   locales: ['pl'],
-  engines: ['paranoid'],
   description: 'Polish postal code (XX-XXX format)',
 }

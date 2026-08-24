@@ -1,11 +1,12 @@
 import type { LanguageRules } from '../types.js'
-import { toPatternDef } from '../../patterns/types.js'
-import { peselRule } from '../../patterns/locale/pl/pesel.js'
-import { plIbanRule } from '../../patterns/locale/pl/iban.js'
-import { plPhoneRule } from '../../patterns/locale/pl/phone.js'
-import { nipRule } from '../../patterns/locale/pl/nip.js'
-import { emailRule } from '../../patterns/global/email.js'
+import { allPatterns } from '../../patterns/index.js'
+import { rulesForLocale } from '../../patterns/types.js'
 
+/**
+ * Polish rule set — derived from the pattern registry rather than listed by
+ * hand, so a new `locales: ['pl']` rule is picked up by adding the file alone.
+ * Which of these actually fire is decided by the sensitivity threshold.
+ */
 export const PolishRules: LanguageRules = {
-  patterns: [peselRule, plIbanRule, emailRule, plPhoneRule, nipRule].map(toPatternDef),
+  patterns: rulesForLocale(allPatterns, 'pl'),
 }

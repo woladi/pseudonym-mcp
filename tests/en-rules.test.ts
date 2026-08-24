@@ -1,29 +1,36 @@
 import { describe, it, expect } from 'vitest'
 import { EnglishRules } from '../src/languages/en/rules.js'
-import type { PatternDef } from '../src/languages/types.js'
+import type { PatternRule } from '../src/patterns/types.js'
 
-function findMatches(patternDef: PatternDef, text: string): string[] {
-  const regex = new RegExp(patternDef.regex.source, patternDef.regex.flags)
-  const matches: string[] = []
-  let m: RegExpExecArray | null
-  while ((m = regex.exec(text)) !== null) {
-    const raw = m[0]
-    const clean = raw.replace(/[\s-]/g, '')
-    if (!patternDef.validate || patternDef.validate(clean)) {
-      matches.push(raw)
+function findMatches(rule: PatternRule, text: string): string[] {
+  // Variants can match the same span; report each distinct match once.
+  const matches = new Set<string>()
+  // A 'boost' checksum adds confidence but never rejects — see PatternRule.
+  const gates = rule.validate !== undefined && (rule.checksumMode ?? 'filter') === 'filter'
+  for (const variant of rule.patterns) {
+    const regex = new RegExp(variant.regex.source, variant.regex.flags)
+    let m: RegExpExecArray | null
+    while ((m = regex.exec(text)) !== null) {
+      const raw = m[0]
+      const clean = raw.replace(/[\s-]/g, '')
+      if (!gates || rule.validate!(clean)) {
+        matches.add(raw)
+      }
     }
   }
-  return matches
+  return [...matches]
 }
 
-function getPattern(tag: string): PatternDef {
-  const def = EnglishRules.patterns.find((p) => p.tag === tag)
-  if (!def) throw new Error(`Pattern for tag "${tag}" not found`)
+// Look rules up by id: several rules can share an entity type now (a generic
+// IBAN rule and the locale-specific one both emit IBAN).
+function getRule(id: string): PatternRule {
+  const def = EnglishRules.patterns.find((p) => p.id === id)
+  if (!def) throw new Error(`Rule "${id}" not found`)
   return def
 }
 
 describe('SSN', () => {
-  const def = getPattern('SSN')
+  const def = getRule('en.ssn')
 
   it('matches a valid SSN', () => {
     expect(findMatches(def, '123-45-6789')).toHaveLength(1)
@@ -56,7 +63,7 @@ describe('SSN', () => {
 })
 
 describe('CREDIT_CARD', () => {
-  const def = getPattern('CREDIT_CARD')
+  const def = getRule('en.credit-card')
 
   it('matches Visa test number (4111111111111111)', () => {
     expect(findMatches(def, '4111111111111111')).toHaveLength(1)
@@ -89,7 +96,7 @@ describe('CREDIT_CARD', () => {
 })
 
 describe('EMAIL', () => {
-  const def = getPattern('EMAIL')
+  const def = getRule('global.email')
 
   it('matches standard email', () => {
     expect(findMatches(def, 'user@example.com')).toHaveLength(1)
@@ -105,7 +112,7 @@ describe('EMAIL', () => {
 })
 
 describe('PHONE', () => {
-  const def = getPattern('PHONE')
+  const def = getRule('en.phone')
 
   it('matches (XXX) XXX-XXXX', () => {
     expect(findMatches(def, '(555) 123-4567')).toHaveLength(1)
