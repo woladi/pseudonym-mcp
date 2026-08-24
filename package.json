@@ -83,7 +83,8 @@
     "dist/",
     "mcp-config.json",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "NOTICE"
   ],
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",

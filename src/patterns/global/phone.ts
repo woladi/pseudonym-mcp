@@ -5,8 +5,13 @@ export const globalPhoneRule: PatternRule = {
   entityType: 'PHONE',
   // Generic international format: +CC followed by digits/spaces/dashes
   // e.g. +1-800-555-1234, +44 20 7946 0958, +33 1 23 45 67 89
-  pattern: /\+\d{1,3}[\s.\-]?\(?\d{1,4}\)?(?:[\s.\-]?\d{1,4}){2,4}\b/g,
+  patterns: [
+    {
+      name: 'Phone (international)',
+      regex: /\+\d{1,3}[\s.\-]?\(?\d{1,4}\)?(?:[\s.\-]?\d{1,4}){2,4}\b/g,
+      score: 0.35,
+    },
+  ],
   locales: null,
-  engines: ['strict', 'paranoid'],
   description: 'Generic international phone number with country code prefix',
 }

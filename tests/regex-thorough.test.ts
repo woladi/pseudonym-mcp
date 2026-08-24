@@ -178,9 +178,14 @@ describe('PL — NIP', () => {
     expect(r).toBe('[NIP:1]')
   })
 
-  it('does not mask NIP without hyphens', async () => {
+  it('masks a bare NIP whose checksum validates (invoice form)', async () => {
     const r = await plEngine().process('5260000005')
-    expect(r).not.toContain('[NIP:')
+    expect(r).toContain('[NIP:1]')
+  })
+
+  it('leaves a bare 10-digit number alone when the NIP checksum fails', async () => {
+    const r = await plEngine().process('5260000000')
+    expect(r).toContain('5260000000')
   })
 
   it('does not mask NIP with invalid checksum (strictValidation=true)', async () => {

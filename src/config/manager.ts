@@ -1,6 +1,8 @@
 import { readFileSync, existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 
+import type { EngineLevel } from '../patterns/types.js'
+
 export type EngineMode = 'regex' | 'llm' | 'hybrid'
 
 export interface Config {
@@ -11,6 +13,18 @@ export interface Config {
   autoUnmask: boolean
   strictValidation: boolean
   customLiterals: string[]
+  /**
+   * How much confidence a match needs before it is masked:
+   * balanced (default) masks only high-confidence matches, strict adds
+   * weaker context-dependent ones, paranoid masks everything a rule sees.
+   */
+  sensitivity: EngineLevel
+  /**
+   * Extra locales to recognize alongside `lang`. A Polish invoice carries
+   * German and Italian identifiers too, and those packs would otherwise stay
+   * dormant because the document language is Polish.
+   */
+  extraLocales: string[]
 }
 
 export interface CliArgs {
@@ -22,6 +36,8 @@ export interface CliArgs {
   autoUnmask?: boolean
   strictValidation?: boolean
   customLiterals?: string[]
+  sensitivity?: EngineLevel
+  extraLocales?: string[]
 }
 
 const DEFAULTS: Config = {
@@ -32,6 +48,8 @@ const DEFAULTS: Config = {
   autoUnmask: false,
   strictValidation: true,
   customLiterals: [],
+  sensitivity: 'balanced',
+  extraLocales: [],
 }
 
 /**
@@ -75,6 +93,8 @@ export class ConfigManager {
     if (cliArgs.autoUnmask !== undefined) cfg.autoUnmask = cliArgs.autoUnmask
     if (cliArgs.strictValidation !== undefined) cfg.strictValidation = cliArgs.strictValidation
     if (cliArgs.customLiterals !== undefined) cfg.customLiterals = cliArgs.customLiterals
+    if (cliArgs.sensitivity !== undefined) cfg.sensitivity = cliArgs.sensitivity
+    if (cliArgs.extraLocales !== undefined) cfg.extraLocales = cliArgs.extraLocales
 
     this.config = cfg
   }

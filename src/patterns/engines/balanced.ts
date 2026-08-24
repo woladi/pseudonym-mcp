@@ -1,7 +1,5 @@
 import { allPatterns } from '../index.js'
-import type { PatternRule } from '../types.js'
+import { rulesForLevel, type PatternRule } from '../types.js'
 
-/** Patterns active in balanced mode — low false-positive rules with good coverage */
-export const balancedPatterns: PatternRule[] = allPatterns.filter((p) =>
-  p.engines.includes('balanced'),
-)
+/** Rules confident enough for balanced mode — the default, tuned for low false positives. */
+export const balancedPatterns: PatternRule[] = rulesForLevel(allPatterns, 'balanced')

@@ -20,9 +20,19 @@ export const ssnRule: PatternRule = {
   id: 'en.ssn',
   entityType: 'SSN',
   // US Social Security Number: XXX-XX-XXXX (required dashes to avoid false positives)
-  pattern: /\b\d{3}-\d{2}-\d{4}\b/g,
+  // The dashed form is unmistakable. The others — dotted, spaced, or nine bare
+  // digits — are common enough shapes that they need the label nearby before
+  // anything is masked.
+  patterns: [
+    { name: 'SSN (dashed)', regex: /\b\d{3}-\d{2}-\d{4}\b/g, score: 0.5 },
+    { name: 'SSN (separated)', regex: /\b\d{3}[ .]\d{2}[ .]\d{4}\b/g, score: 0.3 },
+    { name: 'SSN (compact)', regex: /\b\d{9}\b/g, score: 0.05 },
+  ],
   locales: ['en'],
-  engines: ['balanced', 'strict', 'paranoid'],
+  context: ['ssn', 'social security', 'social security number', 'ss#', 'ssid'],
   description: 'US Social Security Number (XXX-XX-XXXX) with area-number validation',
   validate: ssnValidate,
+  // Area/group/serial ranges rule out impossible numbers; they do not make a
+  // possible one an SSN, so this gates without promoting.
+  checksumMode: 'gate',
 }

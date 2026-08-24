@@ -2,6 +2,9 @@ import { MappingStore } from './mapping-store.js'
 import { OllamaClient, type OllamaEntity } from './ollama-client.js'
 import { ConfigManager } from '../config/manager.js'
 import type { LanguageRules } from '../languages/types.js'
+import { findCandidates } from './recognizer.js'
+import { rulesForLocale, type EngineLevel } from '../patterns/types.js'
+import { allPatterns } from '../patterns/index.js'
 import { EnglishRules } from '../languages/en/rules.js'
 import { PolishRules } from '../languages/pl/rules.js'
 
@@ -19,6 +22,16 @@ export interface ProcessResult {
 const LANGUAGE_MAP: Record<string, LanguageRules> = {
   en: EnglishRules,
   pl: PolishRules,
+}
+
+/** Locales that some rule actually covers; anything else falls back to English. */
+const KNOWN_LOCALES = new Set(allPatterns.flatMap((r) => r.locales ?? []))
+
+function rulesFor(lang: string, extraLocales: string[]): LanguageRules {
+  const locale = KNOWN_LOCALES.has(lang as never) ? lang : 'en'
+  const cached = LANGUAGE_MAP[locale]
+  if (cached && extraLocales.length === 0) return cached
+  return { patterns: rulesForLocale(allPatterns, locale, extraLocales) }
 }
 
 /**
@@ -74,12 +87,12 @@ export class Engine {
    */
   async processWithStatus(text: string, extraLiterals?: string[]): Promise<ProcessResult> {
     const cfg = ConfigManager.getInstance().get()
-    const rules = LANGUAGE_MAP[cfg.lang] ?? EnglishRules
+    const rules = rulesFor(cfg.lang, cfg.extraLocales)
 
     let result = text
 
     if (cfg.engines === 'regex' || cfg.engines === 'hybrid') {
-      result = this.applyRegexRules(result, rules, cfg.strictValidation)
+      result = this.applyRegexRules(result, rules, cfg.strictValidation, cfg.sensitivity)
     }
 
     const allLiterals = [...(cfg.customLiterals ?? []), ...(extraLiterals ?? [])]
@@ -108,20 +121,26 @@ export class Engine {
     return result
   }
 
-  private applyRegexRules(text: string, rules: LanguageRules, strictValidation: boolean): string {
+  /**
+   * Mask every pattern match that clears the sensitivity threshold.
+   *
+   * Candidates from all rules are collected first and overlaps resolved by
+   * confidence, then substitutions are applied right-to-left so earlier
+   * offsets stay valid. Applying rules one after another instead would let
+   * whichever rule happens to run first claim a span it scores worst on.
+   */
+  private applyRegexRules(
+    text: string,
+    rules: LanguageRules,
+    strictValidation: boolean,
+    level: EngineLevel,
+  ): string {
+    const candidates = findCandidates(text, rules.patterns, { level, strictValidation })
+
     let result = text
-
-    for (const patternDef of rules.patterns) {
-      // Clone the regex to reset lastIndex — /g regexes are stateful
-      const regex = new RegExp(patternDef.regex.source, patternDef.regex.flags)
-
-      result = result.replace(regex, (match) => {
-        if (patternDef.validate && strictValidation) {
-          const clean = match.replace(/\s/g, '')
-          if (!patternDef.validate(clean)) return match
-        }
-        return this.store.add(patternDef.tag, match)
-      })
+    for (const candidate of [...candidates].reverse()) {
+      const token = this.store.add(candidate.entityType, candidate.text)
+      result = result.slice(0, candidate.start) + token + result.slice(candidate.end)
     }
 
     return result

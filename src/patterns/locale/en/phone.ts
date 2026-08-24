@@ -5,8 +5,13 @@ export const usPhoneRule: PatternRule = {
   entityType: 'PHONE',
   // US/North America phone formats:
   // +1 (XXX) XXX-XXXX, +1-XXX-XXX-XXXX, (XXX) XXX-XXXX, XXX-XXX-XXXX, XXX.XXX.XXXX
-  pattern: /(?:\+1[\s.\-]?)?\(?\d{3}\)?[\s.\-]\d{3}[\s.\-]\d{4}\b/g,
+  patterns: [
+    {
+      name: 'Phone (US)',
+      regex: /(?:\+1[\s.\-]?)?\(?\d{3}\)?[\s.\-]\d{3}[\s.\-]\d{4}\b/g,
+      score: 0.5,
+    },
+  ],
   locales: ['en'],
-  engines: ['balanced', 'strict', 'paranoid'],
   description: 'US/North America phone number in common formats',
 }

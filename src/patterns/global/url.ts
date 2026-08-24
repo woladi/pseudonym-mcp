@@ -4,8 +4,7 @@ export const urlRule: PatternRule = {
   id: 'global.url',
   entityType: 'URL',
   // http/https URLs — stops at whitespace and common delimiter characters
-  pattern: /https?:\/\/[^\s<>"{}\\|^[\]]+/g,
+  patterns: [{ name: 'URL', regex: /https?:\/\/[^\s<>"{}\\|^[\]]+/g, score: 0.1 }],
   locales: null,
-  engines: ['paranoid'],
   description: 'HTTP/HTTPS URL',
 }
