@@ -1,4 +1,14 @@
 import type { PatternRule } from '../../types.js'
+import { ibanChecksum } from '../../global/iban.js'
+
+/**
+ * Polish accounts are written both as a full IBAN and as a bare 26-digit NRB.
+ * The NRB is an IBAN missing its country prefix, so restore it before checking.
+ */
+export function plAccountChecksum(raw: string): boolean {
+  const value = raw.replace(/[\s-]/g, '').toUpperCase()
+  return ibanChecksum(/^\d{26}$/.test(value) ? `PL${value}` : value)
+}
 
 export const plIbanRule: PatternRule = {
   id: 'pl.iban',
@@ -15,5 +25,7 @@ export const plIbanRule: PatternRule = {
     },
   ],
   locales: ['pl'],
-  description: 'Polish IBAN — PL-prefixed or bare 26 digits (compact or spaced every 4)',
+  description: 'Polish IBAN or bare 26-digit NRB, validated by mod-97 after restoring the prefix',
+  validate: plAccountChecksum,
+  checksumMode: 'boost',
 }

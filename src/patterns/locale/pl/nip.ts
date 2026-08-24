@@ -26,7 +26,6 @@ export const nipRule: PatternRule = {
     { name: 'NIP (formatted)', regex: /(?:NIP[\s:]+)?\b\d{3}-\d{3}-\d{2}-\d{2}\b/g, score: 0.35 },
     { name: 'NIP (bare)', regex: /\b\d{10}\b/g, score: 0.2 },
     { name: 'NIP (spaced)', regex: /\b\d{3}[ ]\d{3}[ ]\d{2}[ ]\d{2}\b/g, score: 0.3 },
-    { name: 'VAT PL', regex: /\bPL[ ]?\d{10}\b/gi, score: 0.6 },
   ],
   locales: ['pl'],
   context: ['nip', 'vat', 'vat id', 'numer nip', 'podatnik', 'tax id', 'nip:'],
