@@ -4,6 +4,9 @@ import { globalIbanRule } from './global/iban.js'
 import { ipv4Rule, ipv6Rule } from './global/ip.js'
 import { urlRule } from './global/url.js'
 import { euVatRule } from './global/eu-vat.js'
+import { cryptoWalletRule, ethWalletRule } from './global/crypto.js'
+import { macRule, uuidRule, imeiRule, vinRule } from './global/device.js'
+import { dateRule } from './global/date.js'
 import { peselRule } from './locale/pl/pesel.js'
 import { plIbanRule } from './locale/pl/iban.js'
 import { plPhoneRule } from './locale/pl/phone.js'
@@ -44,6 +47,9 @@ export * from './global/iban.js'
 export * from './global/ip.js'
 export * from './global/url.js'
 export * from './global/eu-vat.js'
+export * from './global/crypto.js'
+export * from './global/device.js'
+export * from './global/date.js'
 export * from './locale/pl/pesel.js'
 export * from './locale/pl/iban.js'
 export * from './locale/pl/phone.js'
@@ -78,6 +84,13 @@ export const allPatterns: PatternRule[] = [
   ipv6Rule,
   urlRule,
   euVatRule,
+  cryptoWalletRule,
+  ethWalletRule,
+  macRule,
+  uuidRule,
+  imeiRule,
+  vinRule,
+  dateRule,
   // Polish locale
   peselRule,
   plIbanRule,

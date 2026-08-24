@@ -1,0 +1,16 @@
+pseudonym-mcp
+Copyright (c) Adrian Wolczuk
+
+This product includes recognition logic derived from Microsoft Presidio
+(https://github.com/data-privacy-stack/presidio), licensed under the MIT
+License, Copyright (c) Microsoft Corporation.
+
+Specifically, the following were adapted:
+
+  · the scored-pattern model (multiple weighted variants per entity, context
+    words raising confidence, checksum validation as a score modifier)
+  · check-digit algorithms and pattern shapes for PESEL, the German
+    Steueridentifikationsnummer, the Italian codice fiscale, the Spanish
+    NIF and NIE, the Swedish personnummer, the Finnish henkilötunnus, the
+    UK NHS number and NINO, the US SSN, ITIN and ABA routing number,
+    and the IBAN country tables

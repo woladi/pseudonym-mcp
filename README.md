@@ -311,37 +311,43 @@ Restart your client. The `mask_text` and `unmask_text` tools appear automaticall
   "ollamaBaseUrl": "http://localhost:11434",
   "autoUnmask": false,
   "strictValidation": true,
+  "sensitivity": "balanced",
+  "extraLocales": [],
   "customLiterals": ["Jan Kowalski", "78091512345", "+48 123 456 789"]
 }
 ```
 
-| Key                | Values                       | Default                  | Description                                                                               |
-| ------------------ | ---------------------------- | ------------------------ | ----------------------------------------------------------------------------------------- |
-| `lang`             | `en`, `pl`                   | `en`                     | Language pack for regex rules                                                             |
-| `engines`          | `regex` \| `llm` \| `hybrid` | `hybrid`                 | Which NER engines to run                                                                  |
-| `ollamaModel`      | any Ollama model name        | `llama3`                 | Local LLM for entity detection                                                            |
-| `ollamaBaseUrl`    | URL                          | `http://localhost:11434` | Ollama API endpoint                                                                       |
-| `autoUnmask`       | `true` \| `false`            | `false`                  | Report the preferred unmask behavior to clients; this server does not intercept responses |
-| `strictValidation` | `true` \| `false`            | `true`                   | Enable checksum / format validation (SSN area check, Luhn for cards, PESEL checksum)      |
-| `customLiterals`   | `string[]`                   | `[]`                     | Specific strings always redacted regardless of engine (names, IDs, phone numbers)         |
+| Key                | Values                                                                 | Default                  | Description                                                                               |
+| ------------------ | ---------------------------------------------------------------------- | ------------------------ | ----------------------------------------------------------------------------------------- |
+| `lang`             | `en`, `pl`, `de`, `it`, `es`, `fr`, `nl`, `cz`, `sk`, `se`, `fi`, `uk` | `en`                     | Language pack for regex rules                                                             |
+| `engines`          | `regex` \| `llm` \| `hybrid`                                           | `hybrid`                 | Which NER engines to run                                                                  |
+| `ollamaModel`      | any Ollama model name                                                  | `llama3`                 | Local LLM for entity detection                                                            |
+| `ollamaBaseUrl`    | URL                                                                    | `http://localhost:11434` | Ollama API endpoint                                                                       |
+| `autoUnmask`       | `true` \| `false`                                                      | `false`                  | Report the preferred unmask behavior to clients; this server does not intercept responses |
+| `strictValidation` | `true` \| `false`                                                      | `true`                   | Enable checksum / format validation (SSN area check, Luhn for cards, PESEL checksum)      |
+| `sensitivity`      | `balanced` \| `strict` \| `paranoid`                                   | `balanced`               | How much confidence a match needs before it is masked                                     |
+| `extraLocales`     | `string[]`                                                             | `[]`                     | Further locale packs to run alongside `lang`, e.g. `["de", "it"]`                         |
+| `customLiterals`   | `string[]`                                                             | `[]`                     | Specific strings always redacted regardless of engine (names, IDs, phone numbers)         |
 
 ### CLI flags
 
 All config keys can be overridden at startup (highest priority):
 
 ```sh
-pseudonym-mcp --lang en --engines regex --ollama-model llama3 --auto-unmask
+pseudonym-mcp --lang pl --extra-locales de,it --sensitivity strict --engines regex
 ```
 
-| Flag                | Description                                                                 |
-| ------------------- | --------------------------------------------------------------------------- |
-| `--lang`            | Language for regex rules: `en` or `pl` (default: `en`)                      |
-| `--engines`         | `regex`, `llm`, or `hybrid` (default: `hybrid`)                             |
-| `--ollama-model`    | Ollama model to use for NER                                                 |
-| `--ollama-base-url` | Ollama base URL                                                             |
-| `--config`          | Path to a custom JSON config file                                           |
-| `--auto-unmask`     | Set `auto_unmask: true` in `mask_text` output for clients that honor it     |
-| `--custom-literals` | Comma-separated strings to always redact, e.g. `"Jan Kowalski,78091512345"` |
+| Flag                | Description                                                                                                      |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `--lang`            | Language for regex rules: `en`, `pl`, `de`, `it`, `es`, `fr`, `nl`, `cz`, `sk`, `se`, `fi`, `uk` (default: `en`) |
+| `--engines`         | `regex`, `llm`, or `hybrid` (default: `hybrid`)                                                                  |
+| `--ollama-model`    | Ollama model to use for NER                                                                                      |
+| `--ollama-base-url` | Ollama base URL                                                                                                  |
+| `--sensitivity`     | `balanced`, `strict`, or `paranoid` (default: `balanced`)                                                        |
+| `--extra-locales`   | Comma-separated locales to recognize alongside `--lang`, e.g. `de,it`                                            |
+| `--config`          | Path to a custom JSON config file                                                                                |
+| `--auto-unmask`     | Set `auto_unmask: true` in `mask_text` output for clients that honor it                                          |
+| `--custom-literals` | Comma-separated strings to always redact, e.g. `"Jan Kowalski,78091512345"`                                      |
 
 ### Claude Code
 
@@ -391,30 +397,97 @@ Detection is best-effort. The patterns below are what the tool **looks for** —
 
 Custom literals are applied after the regex phase and before LLM NER, regardless of engine mode. Longest literals are matched first to prevent partial substitution.
 
-The tables below list patterns active in the current `Engine` pipeline. Some additional pattern modules exist in the repository for experimentation, but they are not advertised here unless the language rules actually use them.
+### How a match is decided
 
-### English (`--lang en`, default)
+Every pattern carries a confidence score. A checksum that validates raises it,
+and a context word near the match — "PESEL:", "NIP", "Steuer-ID", "date of
+birth" — raises it too, enough on its own to reach the default threshold. What
+gets masked is whatever clears the sensitivity bar:
 
-| Tag           | Pattern                                             | Validation                                 |
-| ------------- | --------------------------------------------------- | ------------------------------------------ |
-| `SSN`         | `XXX-XX-XXXX` (US Social Security Number)           | Area number check (rejects 000, 666, 900+) |
-| `CREDIT_CARD` | 13–19 digits (Visa, Mastercard, Amex, Discover)     | Luhn checksum                              |
-| `EMAIL`       | RFC 5321-compatible                                 | Format match                               |
-| `PHONE`       | `+1 (XXX) XXX-XXXX`, `XXX-XXX-XXXX`, `XXX.XXX.XXXX` | Format match                               |
-| `PERSON`      | Full names                                          | Ollama NER (hybrid / llm engines)          |
-| `ORG`         | Company / organisation names                        | Ollama NER (hybrid / llm engines)          |
+| `--sensitivity` | Threshold | Effect                                                                  |
+| --------------- | --------- | ----------------------------------------------------------------------- |
+| `balanced`      | 0.50      | Default. Distinctive shapes, verified checksums, and anything labelled. |
+| `strict`        | 0.35      | Adds weaker shapes: bare IBAN-like strings, dates, generic identifiers. |
+| `paranoid`      | 0.10      | Everything a rule can see, false positives included.                    |
+
+Where a failing checksum means "not this entity at all" (a card number failing
+Luhn), the candidate is dropped. Where it means a typo (a PESEL), the candidate
+survives at lower confidence — a mistyped identifier reaching the cloud is
+worse than a number masked for nothing.
+
+Rules marked ✓ below verify a real check digit.
+
+### Global — active in every language
+
+| Tag             | Detection                                               | Checksum             |
+| --------------- | ------------------------------------------------------- | -------------------- |
+| `EMAIL`         | RFC 5321-compatible address                             |                      |
+| `PHONE`         | International formats                                   |                      |
+| `IBAN`          | 76 countries, ISO 13616 lengths                         | ✓ mod-97             |
+| `VAT_ID`        | All 27 EU member states plus `XI`                       | ✓ PL, IT, NL, SI, LU |
+| `CRYPTO_WALLET` | Bitcoin (Base58Check, bech32), Ethereum                 | ✓ BTC                |
+| `IMEI`          | Mobile device identifier                                | ✓ Luhn               |
+| `VIN`           | Vehicle identification number                           | ✓ ISO 3779           |
+| `MAC`           | Hardware address                                        |                      |
+| `UUID`          | UUID / GUID                                             |                      |
+| `IP`            | IPv4 and IPv6                                           |                      |
+| `URL`           | Web address                                             |                      |
+| `DATE`          | Calendar date — masked when it reads as a date of birth |                      |
 
 ### Polish (`--lang pl`)
 
-| Tag      | Pattern                                                          | Validation                                      |
-| -------- | ---------------------------------------------------------------- | ----------------------------------------------- |
-| `PESEL`  | 11-digit national ID                                             | Full checksum (weights `[1,3,7,9,1,3,7,9,1,3]`) |
-| `IBAN`   | `PL` + 26 digits, compact or spaced                              | Format match                                    |
-| `EMAIL`  | RFC 5321-compatible                                              | Format match                                    |
-| `PHONE`  | `+48` / `0048` prefix, 9-digit mobile, landline `(XX) XXX-XX-XX` | Format match                                    |
-| `NIP`    | 10-digit tax ID (strict / paranoid modes)                        | Checksum (weights `[6,5,7,2,3,4,5,6,7]`)        |
-| `PERSON` | Full names                                                       | Ollama NER (hybrid / llm engines)               |
-| `ORG`    | Company / organisation names                                     | Ollama NER (hybrid / llm engines)               |
+| Tag           | Detection                                        | Checksum |
+| ------------- | ------------------------------------------------ | -------- |
+| `PESEL`       | National ID, 11 digits                           | ✓ Mod-10 |
+| `NIP`         | Tax ID — hyphenated, spaced, or bare on invoices | ✓ Mod-11 |
+| `REGON`       | Business register, 9 or 14 digits                | ✓ Mod-11 |
+| `ID_CARD`     | Dowód osobisty, `ABC123456`                      | ✓        |
+| `PASSPORT`    | Two letters plus seven digits                    | ✓        |
+| `KW`          | Księga wieczysta (land register)                 | ✓        |
+| `KRS`         | Court register number — needs its label          |          |
+| `IBAN`        | `PL` prefix or bare 26-digit NRB                 | ✓ mod-97 |
+| `PHONE`       | `+48` / `0048`, mobile, landline                 |          |
+| `POSTAL_CODE` | `XX-XXX`                                         |          |
+
+### United States (`--lang en`)
+
+| Tag              | Detection                                                 | Checksum          |
+| ---------------- | --------------------------------------------------------- | ----------------- |
+| `SSN`            | Dashed form; dotted, spaced and bare forms need the label | area/group ranges |
+| `CREDIT_CARD`    | 13–19 digits                                              | ✓ Luhn            |
+| `ITIN`           | Taxpayer identification number                            |                   |
+| `EIN`            | Employer identification number                            |                   |
+| `ABA_ROUTING`    | Bank routing number                                       | ✓ 3-7-1           |
+| `PASSPORT`       | Nine digits — needs its label                             |                   |
+| `DRIVER_LICENSE` | State formats — needs its label                           |                   |
+| `ZIP_CODE`       | `XXXXX` / `XXXXX-XXXX`                                    |                   |
+
+### Other European locales
+
+Enable them with `--lang`, or alongside another language with
+`--extra-locales de,it` — a Polish invoice carries German and Italian
+identifiers too.
+
+| Locale    | Tag                  | Detection                   | Checksum   |
+| --------- | -------------------- | --------------------------- | ---------- |
+| `de`      | `DE_TAX_ID`          | Steueridentifikationsnummer | ✓ ISO 7064 |
+| `de`      | `POSTAL_CODE`        | PLZ                         |            |
+| `it`      | `IT_FISCAL_CODE`     | Codice fiscale              | ✓          |
+| `es`      | `ES_NIF` / `ES_NIE`  | DNI/NIF and foreigner ID    | ✓ mod-23   |
+| `fr`      | `FR_NIR`             | Numéro de sécurité sociale  | ✓ mod-97   |
+| `nl`      | `NL_BSN`             | Burgerservicenummer         | ✓ elfproef |
+| `cz` `sk` | `CZ_SK_BIRTH_NUMBER` | Rodné číslo                 | ✓ mod-11   |
+| `se`      | `SE_PERSONNUMMER`    | Personnummer                | ✓ Luhn     |
+| `fi`      | `FI_HETU`            | Henkilötunnus               | ✓ mod-31   |
+| `uk`      | `UK_NHS`             | NHS number                  | ✓ mod-11   |
+| `uk`      | `UK_NINO`            | National Insurance number   |            |
+
+### Detected by the LLM, not by pattern
+
+| Tag      | Detection                    | Requires                          |
+| -------- | ---------------------------- | --------------------------------- |
+| `PERSON` | Full names                   | Ollama NER (hybrid / llm engines) |
+| `ORG`    | Company / organisation names | Ollama NER (hybrid / llm engines) |
 
 ## Language Detection
 
