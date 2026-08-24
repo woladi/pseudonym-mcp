@@ -1,5 +1,54 @@
 # Changelog
 
+## 0.8.0
+
+### Minor Changes
+
+- 3b6ba66: National identifier packs for Germany (Steuer-ID, PLZ), Italy (codice fiscale),
+  Spain (NIF/DNI, NIE), France (NIR), the Netherlands (BSN), Czechia and Slovakia
+  (rodné číslo), Sweden (personnummer), Finland (hetu) and the UK (NHS number,
+  NINO, postcode), each with its national checksum. A new `--extra-locales`
+  flag turns packs on alongside the document language, so a Polish invoice can be
+  scanned for German and Italian identifiers too.
+- 30c7c19: Generic identifiers that appear in any language: Bitcoin addresses (real
+  Base58Check and bech32 verification), Ethereum addresses, IMEI (Luhn), VIN
+  (ISO 3779), MAC addresses, UUIDs, and calendar dates — which stay unmasked by
+  default and fire when the text reads as a date of birth or at higher
+  sensitivity.
+- a0bcc44: IBAN is now validated with the ISO 7064 mod-97 checksum and the per-country
+  length table instead of a shape-only regex, and bare 26-digit Polish NRB
+  account numbers are checked by restoring the missing `PL` prefix. Adds an EU
+  VAT recognizer covering all 27 member-state formats plus the `XI` prefix, with
+  national check digits for PL, IT, NL, SI and LU.
+- 42f4b23: Polish identifier pack: REGON (9 and 14 digits, Mod-11), dowód osobisty,
+  paszport, KRS and numer księgi wieczystej, each with its official check digit
+  and the labels it appears next to in documents.
+- e02cd93: Score-based recognition: every pattern now carries a confidence, a nearby
+  context word ("PESEL:", "NIP") raises it, and a passing checksum raises it
+  further. Matches from all rules are collected and overlaps resolved by
+  confidence instead of applying rules one after another, so the best rule wins a
+  span rather than whichever ran first. A new `--sensitivity` flag
+  (`balanced` | `strict` | `paranoid`) sets how much confidence a match needs.
+
+  Two behaviour changes follow: a bare ten-digit NIP whose checksum validates is
+  now masked (the form printed on invoices, previously missed), and a PESEL whose
+  checksum fails is still masked, because a mistyped identifier reaching the
+  cloud is worse than a false positive.
+
+- e888834: US pack: ITIN, EIN, ABA routing number (3-7-1 checksum), passport and driver
+  license, plus the weaker SSN spellings — dotted, spaced and nine bare digits —
+  which mask only when "SSN" or "social security" stands nearby. A context word
+  now lifts a match to the balanced threshold on its own, and validators that
+  merely rule out impossible values (SSN area numbers) no longer promote a match
+  the way a real checksum does.
+
+### Patch Changes
+
+- 4f09b64: Context words are now looked for in a window of words rather than characters,
+  and the window is lopsided — eight words back, four forward — because
+  documents label a value before printing it. A contract dated near the words
+  "data urodzenia" used to be masked as a birth date.
+
 ## 0.7.5
 
 ### Patch Changes
