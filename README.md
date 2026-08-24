@@ -504,7 +504,15 @@ See `src/patterns/locale/pl/` and `src/languages/pl/rules.ts` for a complete exa
 
 ## Contributing
 
-Contributions are welcome. Please follow [Conventional Commits](https://www.conventionalcommits.org/) for commit messages — this project uses `release-it` with `@release-it/conventional-changelog` to automate releases.
+Contributions are welcome. Please follow [Conventional Commits](https://www.conventionalcommits.org/) for commit messages.
+
+Releases run on [changesets](https://github.com/changesets/changesets). If your change is user-visible, add a changeset to the PR:
+
+```sh
+npm run changeset   # pick patch / minor / major, describe the change
+```
+
+Merging to `master` then opens a "version packages" PR that bumps the version, `server.json`, `src/version.ts` and the changelog; merging _that_ PR publishes to npm (Trusted Publishing, with provenance), tags the release, and refreshes the MCP registry entry. A merge with no pending changesets publishes nothing.
 
 Language pack contributions are especially welcome — German (Personalausweis, Steuer-ID), French (NIR, SIRET), Spanish (DNI/NIE) and others would significantly expand the tool's usefulness.
 
