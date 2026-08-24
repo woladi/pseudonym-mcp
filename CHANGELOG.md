@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.5
+
+### Patch Changes
+
+- cf5fdea: Report the real package version over MCP and on `--version`. Every release from
+  0.3.0 onwards shipped with the runtime version constant frozen at `0.2.5`,
+  because the old pipeline published without ever committing the bump back to the
+  repository.
+
 > Entries for 0.3.1 – 0.7.4 were reconstructed from git tags. The old release
 > pipeline tagged and published without ever pushing the changelog commit back
 > to `master`, so those releases went out with no changelog at all. Versions
