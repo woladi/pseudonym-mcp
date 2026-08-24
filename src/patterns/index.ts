@@ -8,6 +8,11 @@ import { plIbanRule } from './locale/pl/iban.js'
 import { plPhoneRule } from './locale/pl/phone.js'
 import { nipRule } from './locale/pl/nip.js'
 import { plPostalCodeRule } from './locale/pl/postal-code.js'
+import { regonRule } from './locale/pl/regon.js'
+import { idCardRule } from './locale/pl/id-card.js'
+import { plPassportRule } from './locale/pl/passport.js'
+import { krsRule } from './locale/pl/krs.js'
+import { landRegisterRule } from './locale/pl/land-register.js'
 import { ssnRule } from './locale/en/ssn.js'
 import { creditCardRule } from './locale/en/credit-card.js'
 import { usPhoneRule } from './locale/en/phone.js'
@@ -26,6 +31,11 @@ export * from './locale/pl/iban.js'
 export * from './locale/pl/phone.js'
 export * from './locale/pl/nip.js'
 export * from './locale/pl/postal-code.js'
+export * from './locale/pl/regon.js'
+export * from './locale/pl/id-card.js'
+export * from './locale/pl/passport.js'
+export * from './locale/pl/krs.js'
+export * from './locale/pl/land-register.js'
 export * from './locale/en/ssn.js'
 export * from './locale/en/credit-card.js'
 export * from './locale/en/phone.js'
@@ -45,6 +55,11 @@ export const allPatterns: PatternRule[] = [
   plPhoneRule,
   nipRule,
   plPostalCodeRule,
+  regonRule,
+  idCardRule,
+  plPassportRule,
+  krsRule,
+  landRegisterRule,
   // English locale
   ssnRule,
   creditCardRule,
