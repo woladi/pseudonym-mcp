@@ -99,3 +99,55 @@ describe('masking — Polish identifiers', () => {
     expect(engine.revert(masked)).toBe(original)
   })
 })
+
+describe('a realistic contract', () => {
+  const CONTRACT = [
+    'Umowa z dnia 2026-03-14.',
+    'Kupujący: Jan Kowalski, PESEL 44051401359, dowód osobisty ABC412345,',
+    'data urodzenia 1944-05-14, zam. 00-950 Warszawa, tel. +48 601 234 567.',
+    'Sprzedający: Auto-Lux sp. z o.o., NIP 5260000005, REGON 123456785,',
+    'KRS 0000123456, rachunek PL61 1090 1014 0000 0712 1981 2874.',
+    'Kontrahent niemiecki: Steuer-ID 86095742719, VAT DE123456789.',
+    'Termin płatności: 2026-04-30. Faktura nr 0000123457.',
+  ].join('\n')
+
+  function contractEngine(): Engine {
+    ConfigManager.reset()
+    ConfigManager.init({ lang: 'pl', engines: 'regex', extraLocales: ['de'] })
+    return new Engine(undefined, null)
+  }
+
+  it('masks every identifier in the document', async () => {
+    const masked = await contractEngine().process(CONTRACT)
+    for (const tag of [
+      'PESEL',
+      'ID_CARD',
+      'DATE',
+      'PHONE',
+      'NIP',
+      'REGON',
+      'KRS',
+      'IBAN',
+      'DE_TAX_ID',
+      'VAT_ID',
+      'POSTAL_CODE',
+    ]) {
+      expect(masked).toContain(`[${tag}:`)
+    }
+  })
+
+  it('leaves the dates and numbers that are not personal data', async () => {
+    const masked = await contractEngine().process(CONTRACT)
+    // The contract date and the payment deadline are not dates of birth, and
+    // an invoice number is not a court register entry.
+    expect(masked).toContain('Umowa z dnia 2026-03-14')
+    expect(masked).toContain('Termin płatności: 2026-04-30')
+    expect(masked).toContain('Faktura nr 0000123457')
+  })
+
+  it('round-trips the whole document', async () => {
+    const e = contractEngine()
+    const masked = await e.process(CONTRACT)
+    expect(e.revert(masked)).toBe(CONTRACT)
+  })
+})

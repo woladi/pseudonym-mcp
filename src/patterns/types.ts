@@ -45,8 +45,14 @@ export const CONTEXT_BOOST = 0.35
 export const MIN_SCORE_WITH_CONTEXT = 0.5
 /** Floor applied when a checksum validates — a verified identifier is not a guess. */
 export const CHECKSUM_VALID_SCORE = 0.85
-/** How far around a match to look for context words, in characters. */
-export const CONTEXT_WINDOW_CHARS = 120
+/**
+ * How far around a match to look for context words, counted in words and
+ * deliberately lopsided: documents label a value before printing it
+ * ("data urodzenia 1944-05-14", "NIP: 526-000-00-05"), so looking far ahead
+ * mostly finds the next field's label and masks the wrong value.
+ */
+export const CONTEXT_WORDS_BEFORE = 8
+export const CONTEXT_WORDS_AFTER = 4
 
 export const MAX_SCORE = 1.0
 

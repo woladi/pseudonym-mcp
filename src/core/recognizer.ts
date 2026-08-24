@@ -1,7 +1,8 @@
 import {
   CHECKSUM_VALID_SCORE,
   CONTEXT_BOOST,
-  CONTEXT_WINDOW_CHARS,
+  CONTEXT_WORDS_AFTER,
+  CONTEXT_WORDS_BEFORE,
   ENGINE_THRESHOLDS,
   MAX_SCORE,
   MIN_SCORE_WITH_CONTEXT,
@@ -42,9 +43,11 @@ function containsWord(haystack: string, word: string): boolean {
   return re.test(haystack)
 }
 
-/** Text around a match, where context words are looked for. */
+/** The words around a match, where context words are looked for. */
 function contextWindow(text: string, start: number, end: number): string {
-  return text.slice(Math.max(0, start - CONTEXT_WINDOW_CHARS), end + CONTEXT_WINDOW_CHARS)
+  const before = text.slice(0, start).split(/\s+/).slice(-CONTEXT_WORDS_BEFORE).join(' ')
+  const after = text.slice(end).trim().split(/\s+/).slice(0, CONTEXT_WORDS_AFTER).join(' ')
+  return `${before} ${after}`
 }
 
 /**

@@ -19,7 +19,8 @@ describe('findCandidates — thresholds', () => {
   })
 
   it('hides a weak match at balanced and reveals it at paranoid', () => {
-    const text = 'Adres: 00-950 Warszawa'
+    // No label near it — "adres" would now count as context for this rule.
+    const text = 'Warszawa 00-950'
     expect(findCandidates(text, [plPostalCodeRule], { level: 'balanced' })).toHaveLength(0)
     expect(findCandidates(text, [plPostalCodeRule], { level: 'paranoid' })).toHaveLength(1)
   })
