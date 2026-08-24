@@ -5,8 +5,8 @@ import type { PatternRule } from '../src/patterns/types.js'
 function findMatches(rule: PatternRule, text: string): string[] {
   // Variants can match the same span; report each distinct match once.
   const matches = new Set<string>()
-  // A 'boost' checksum adds confidence but never rejects — see PatternRule.
-  const gates = rule.validate !== undefined && (rule.checksumMode ?? 'filter') === 'filter'
+  // Only a 'boost' checksum never rejects; 'filter' and 'gate' both do.
+  const gates = rule.validate !== undefined && (rule.checksumMode ?? 'filter') !== 'boost'
   for (const variant of rule.patterns) {
     const regex = new RegExp(variant.regex.source, variant.regex.flags)
     let m: RegExpExecArray | null

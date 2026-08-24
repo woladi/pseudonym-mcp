@@ -37,8 +37,12 @@ export const ENGINE_THRESHOLDS: Record<EngineLevel, number> = {
 
 /** How much a nearby context word adds to a candidate's score. */
 export const CONTEXT_BOOST = 0.35
-/** Floor applied once a context word was found, however weak the base score. */
-export const MIN_SCORE_WITH_CONTEXT = 0.4
+/**
+ * Floor applied once a context word was found, however weak the base score.
+ * Set at the balanced threshold on purpose: if the document itself says
+ * "Passport no" right before a number, that is enough to mask it by default.
+ */
+export const MIN_SCORE_WITH_CONTEXT = 0.5
 /** Floor applied when a checksum validates — a verified identifier is not a guess. */
 export const CHECKSUM_VALID_SCORE = 0.85
 /** How far around a match to look for context words, in characters. */
@@ -84,8 +88,11 @@ export interface PatternRule {
    * - 'boost' — the checksum only adds confidence, never removes a candidate.
    *   Right where a false negative leaks data: a mistyped or fictitious PESEL
    *   is still eleven digits that must not reach the cloud.
+   * - 'gate' — drop on failure but do not promote on success. Right for
+   *   plausibility rules rather than checksums: US SSN area numbers rule out
+   *   impossible values without making a possible one any more likely.
    */
-  checksumMode?: 'filter' | 'boost'
+  checksumMode?: 'filter' | 'boost' | 'gate'
 }
 
 /** Highest base score a rule can produce, i.e. its strongest variant. */

@@ -63,7 +63,10 @@ function scoreMatch(
 
   if (rule.validate) {
     checksum = rule.validate(matchText.replace(/\s/g, ''))
-    if (checksum) score = Math.max(score, CHECKSUM_VALID_SCORE)
+    // 'gate' rules only rule things out — passing tells us nothing extra.
+    if (checksum && rule.checksumMode !== 'gate') {
+      score = Math.max(score, CHECKSUM_VALID_SCORE)
+    }
   }
 
   const contextHit = (rule.context ?? []).some((word) => containsWord(window, word))
@@ -127,7 +130,7 @@ export function findCandidates(
           contextWindow(text, start, end),
         )
 
-        const dropOnFailedChecksum = (rule.checksumMode ?? 'filter') === 'filter'
+        const dropOnFailedChecksum = (rule.checksumMode ?? 'filter') !== 'boost'
         if (checksum === false && strictValidation && dropOnFailedChecksum) continue
         if (score < threshold) continue
 

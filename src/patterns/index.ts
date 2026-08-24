@@ -18,6 +18,13 @@ import { ssnRule } from './locale/en/ssn.js'
 import { creditCardRule } from './locale/en/credit-card.js'
 import { usPhoneRule } from './locale/en/phone.js'
 import { usZipCodeRule } from './locale/en/zip-code.js'
+import {
+  itinRule,
+  einRule,
+  abaRoutingRule,
+  usPassportRule,
+  usDriverLicenseRule,
+} from './locale/en/tax-ids.js'
 import { deTaxIdRule, dePostalCodeRule } from './locale/de/tax-id.js'
 import { codiceFiscaleRule } from './locale/it/fiscal-code.js'
 import { esNifRule, esNieRule } from './locale/es/nif.js'
@@ -51,6 +58,7 @@ export * from './locale/en/ssn.js'
 export * from './locale/en/credit-card.js'
 export * from './locale/en/phone.js'
 export * from './locale/en/zip-code.js'
+export * from './locale/en/tax-ids.js'
 export * from './locale/de/tax-id.js'
 export * from './locale/it/fiscal-code.js'
 export * from './locale/es/nif.js'
@@ -86,6 +94,11 @@ export const allPatterns: PatternRule[] = [
   creditCardRule,
   usPhoneRule,
   usZipCodeRule,
+  itinRule,
+  einRule,
+  abaRoutingRule,
+  usPassportRule,
+  usDriverLicenseRule,
   // Other EU locales
   deTaxIdRule,
   dePostalCodeRule,
