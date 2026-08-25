@@ -1,5 +1,9 @@
 # pseudonym-mcp
 
+<p align="center">
+  <img src=".github/assets/hero.jpg" alt="pseudonym-mcp — mask PII locally, send safely to a cloud LLM, restore instantly" width="1200">
+</p>
+
 Local pseudonymisation tools for LLM workflows — replace detected PII with opaque tokens before you hand text to a cloud LLM, then restore those tokens afterward.
 
 [![npm version](https://img.shields.io/npm/v/pseudonym-mcp?style=flat-square&logo=npm&logoColor=white)](https://www.npmjs.com/package/pseudonym-mcp)
@@ -15,7 +19,7 @@ It is a **defense-in-depth measure**, not a compliance silver bullet. Read the [
 
 ## What you get
 
-- **Multi-language PII detection**: Built-in support for English (SSN, credit cards, US phone) and Polish (PESEL, IBAN, Polish phone). New **heuristic language detection** (`detectLanguage()`) infers the language from text content — `--lang` remains the authoritative override but is no longer the only input.
+- **46 recognizers across twelve locales**: Poland (PESEL, NIP, REGON, dowód, paszport, księga wieczysta), the EU (IBAN with mod-97, VAT for all 27 member states, plus DE, IT, ES, FR, NL, CZ/SK, SE, FI and UK national IDs) and the US (SSN, ITIN, EIN, ABA routing, cards). 24 of them verify a real check digit. **Heuristic language detection** (`detectLanguage()`) infers the language from text content — `--lang` remains the authoritative override.
 - **Hybrid NER engine**: Regex for structured PII (SSN, credit cards, IBAN, email, phone) + local Ollama LLM for unstructured entities (names, organisations).
 - **Local-detection architecture**: Detection and substitution happen on your machine when the MCP tool is called. The cloud LLM call still happens (that's the point) — but it can see tokens instead of detected PII when your workflow uses the masked output.
 - **Session-keyed mapping store**: Tokens like `[PERSON:1]` map back to originals in an isolated, per-request session. Multiple round-trips preserve token coherence.
@@ -390,6 +394,10 @@ Add to `~/.cursor/mcp.json`:
 
 ## Supported PII types
 
+<p align="center">
+  <img src=".github/assets/coverage.jpg" alt="46 recognizers across Poland, Europe and the United States, 24 of them checksum-verified" width="1200">
+</p>
+
 Detection is best-effort. The patterns below are what the tool **looks for** — not a guarantee of what it will always catch. See [Limitations](#limitations) for known gaps.
 
 ### Custom literals
@@ -401,6 +409,10 @@ Detection is best-effort. The patterns below are what the tool **looks for** —
 Custom literals are applied after the regex phase and before LLM NER, regardless of engine mode. Longest literals are matched first to prevent partial substitution.
 
 ### How a match is decided
+
+<p align="center">
+  <img src=".github/assets/scoring.jpg" alt="Confidence meter: bare digits score 0.15, a context word lifts it to 0.50, a passing checksum to 0.85, against the paranoid, strict and balanced thresholds" width="1200">
+</p>
 
 Every pattern carries a confidence score. A checksum that validates raises it,
 and a context word near the match — "PESEL:", "NIP", "Steuer-ID", "date of
