@@ -3,7 +3,12 @@ import { OllamaClient, type OllamaEntity } from './ollama-client.js'
 import { ConfigManager } from '../config/manager.js'
 import type { LanguageRules } from '../languages/types.js'
 import { findCandidates } from './recognizer.js'
-import { rulesForLocale, type EngineLevel } from '../patterns/types.js'
+import {
+  SUPPORTED_LOCALES,
+  resolveLocales,
+  rulesForLocales,
+  type EngineLevel,
+} from '../patterns/types.js'
 import { allPatterns } from '../patterns/index.js'
 import { EnglishRules } from '../languages/en/rules.js'
 import { PolishRules } from '../languages/pl/rules.js'
@@ -24,14 +29,26 @@ const LANGUAGE_MAP: Record<string, LanguageRules> = {
   pl: PolishRules,
 }
 
-/** Locales that some rule actually covers; anything else falls back to English. */
-const KNOWN_LOCALES = new Set(allPatterns.flatMap((r) => r.locales ?? []))
+/** Every rule there is — what an unnarrowed configuration runs. */
+const ALL_LOCALE_RULES: LanguageRules = {
+  patterns: rulesForLocales(allPatterns, SUPPORTED_LOCALES),
+}
 
+/**
+ * The rules a configuration turns on. An unrecognized `lang` resolves to every
+ * pack rather than to English: a typo in the config should cost precision, not
+ * coverage.
+ */
 function rulesFor(lang: string, extraLocales: string[]): LanguageRules {
-  const locale = KNOWN_LOCALES.has(lang as never) ? lang : 'en'
-  const cached = LANGUAGE_MAP[locale]
-  if (cached && extraLocales.length === 0) return cached
-  return { patterns: rulesForLocale(allPatterns, locale, extraLocales) }
+  const { active, all } = resolveLocales(lang, extraLocales)
+  if (all) return ALL_LOCALE_RULES
+
+  if (active.length === 1) {
+    const cached = LANGUAGE_MAP[active[0]]
+    if (cached) return cached
+  }
+
+  return { patterns: rulesForLocales(allPatterns, active) }
 }
 
 /**

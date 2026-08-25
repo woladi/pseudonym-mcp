@@ -19,7 +19,7 @@ It is a **defense-in-depth measure**, not a compliance silver bullet. Read the [
 
 ## What you get
 
-- **46 recognizers across twelve locales**: Poland (PESEL, NIP, REGON, dowód, paszport, księga wieczysta), the EU (IBAN with mod-97, VAT for all 27 member states, plus DE, IT, ES, FR, NL, CZ/SK, SE, FI and UK national IDs) and the US (SSN, ITIN, EIN, ABA routing, cards). 24 of them verify a real check digit. **Heuristic language detection** (`detectLanguage()`) infers the language from text content — `--lang` remains the authoritative override.
+- **46 recognizers across twelve locales, all of them live by default**: Poland (PESEL, NIP, REGON, dowód, paszport, księga wieczysta), the EU (IBAN with mod-97, VAT for all 27 member states, plus DE, IT, ES, FR, NL, CZ/SK, SE, FI and UK national IDs) and the US (SSN, ITIN, EIN, ABA routing, cards). 24 of them verify a real check digit. `--lang` narrows that set when you want fewer false positives — see [Locale coverage is fail-closed](#locale-coverage-is-fail-closed). **Heuristic language detection** (`detectLanguage()`) infers the language from text content — `--lang` remains the authoritative override.
 - **Hybrid NER engine**: Regex for structured PII (SSN, credit cards, IBAN, email, phone) + local Ollama LLM for unstructured entities (names, organisations).
 - **Local-detection architecture**: Detection and substitution happen on your machine when the MCP tool is called. The cloud LLM call still happens (that's the point) — but it can see tokens instead of detected PII when your workflow uses the masked output.
 - **Session-keyed mapping store**: Tokens like `[PERSON:1]` map back to originals in an isolated, per-request session. Multiple round-trips preserve token coherence.
@@ -136,7 +136,7 @@ Your App / Claude Desktop
 ### Token format
 
 ```
-English (--lang en, default):
+US / English identifiers (en pack):
 [PERSON:1]       John Smith
 [SSN:1]          123-45-6789
 [CREDIT_CARD:1]  4111 1111 1111 1111
@@ -144,7 +144,7 @@ English (--lang en, default):
 [EMAIL:1]        john@acme.com
 [PHONE:1]        (555) 123-4567
 
-Polish (--lang pl):
+Polish identifiers (pl pack):
 [PERSON:1]       Jan Kowalski
 [PESEL:1]        90010112318
 [ORG:1]          Auto-Lux
@@ -230,7 +230,7 @@ Intended workflow:
 2. Claude processes the masked text
 3. pseudonym-mcp restores originals in the response
 
-Optional `lang` argument: `en` (default) or `pl`.
+Optional `lang` argument: `en` or `pl`. It only annotates the generated prompt text; the packs the server actually runs come from its own `--lang`.
 
 ### `privacy_scan_file` — file / PDF (macOS only)
 
@@ -247,7 +247,7 @@ Intended workflow:
 3. Claude processes the masked content
 4. pseudonym-mcp restores originals before the response is shown
 
-Optional arguments: `task` (default: _summarise the key points_), `lang` (`en` or `pl`).
+Optional arguments: `task` (default: _summarise the key points_), `lang` (`en` or `pl` — annotates the prompt text only).
 
 ## Quick Start
 
@@ -293,7 +293,20 @@ Restart your client. The `mask_text` and `unmask_text` tools appear automaticall
   "session_id": "3f2a1b...",
   "masked_text": "[PERSON:1] (SSN: [SSN:1]) works at [ORG:1].",
   "auto_unmask": false,
-  "ner_status": "ready"
+  "ner_status": "ready",
+  "active_locales": ["pl", "en", "de", "it", "es", "fr", "nl", "cz", "sk", "se", "fi", "uk"]
+}
+```
+
+`active_locales` lists the packs that ran. If the server was narrowed with
+`--lang`, the response also carries `disabled_locales` and a `locale_warning`
+naming the identifiers it cannot see:
+
+```json
+{
+  "active_locales": ["en"],
+  "disabled_locales": ["pl", "de", "it", "es", "fr", "nl", "cz", "sk", "se", "fi", "uk"],
+  "locale_warning": "Locale packs disabled: pl (PESEL, NIP, REGON, …); de (Steuer-IdNr, PLZ); … Identifiers from those countries are NOT detected and will pass through unmasked. Start the server without --lang, or with --lang all, to load every pack."
 }
 ```
 
@@ -312,7 +325,7 @@ Restart your client. The `mask_text` and `unmask_text` tools appear automaticall
 
 ```json
 {
-  "lang": "en",
+  "lang": "all",
   "engines": "hybrid",
   "ollamaModel": "llama3",
   "ollamaBaseUrl": "http://localhost:11434",
@@ -324,17 +337,60 @@ Restart your client. The `mask_text` and `unmask_text` tools appear automaticall
 }
 ```
 
-| Key                | Values                                                                 | Default                  | Description                                                                               |
-| ------------------ | ---------------------------------------------------------------------- | ------------------------ | ----------------------------------------------------------------------------------------- |
-| `lang`             | `en`, `pl`, `de`, `it`, `es`, `fr`, `nl`, `cz`, `sk`, `se`, `fi`, `uk` | `en`                     | Language pack for regex rules                                                             |
-| `engines`          | `regex` \| `llm` \| `hybrid`                                           | `hybrid`                 | Which NER engines to run                                                                  |
-| `ollamaModel`      | any Ollama model name                                                  | `llama3`                 | Local LLM for entity detection                                                            |
-| `ollamaBaseUrl`    | URL                                                                    | `http://localhost:11434` | Ollama API endpoint                                                                       |
-| `autoUnmask`       | `true` \| `false`                                                      | `false`                  | Report the preferred unmask behavior to clients; this server does not intercept responses |
-| `strictValidation` | `true` \| `false`                                                      | `true`                   | Enable checksum / format validation (SSN area check, Luhn for cards, PESEL checksum)      |
-| `sensitivity`      | `balanced` \| `strict` \| `paranoid`                                   | `balanced`               | How much confidence a match needs before it is masked                                     |
-| `extraLocales`     | `string[]`                                                             | `[]`                     | Further locale packs to run alongside `lang`, e.g. `["de", "it"]`                         |
-| `customLiterals`   | `string[]`                                                             | `[]`                     | Specific strings always redacted regardless of engine (names, IDs, phone numbers)         |
+| Key                | Values                                                                        | Default                  | Description                                                                                        |
+| ------------------ | ----------------------------------------------------------------------------- | ------------------------ | -------------------------------------------------------------------------------------------------- |
+| `lang`             | `all`, `en`, `pl`, `de`, `it`, `es`, `fr`, `nl`, `cz`, `sk`, `se`, `fi`, `uk` | `all`                    | Locale pack(s) for regex rules. `all` runs every pack — see below                                  |
+| `engines`          | `regex` \| `llm` \| `hybrid`                                                  | `hybrid`                 | Which NER engines to run                                                                           |
+| `ollamaModel`      | any Ollama model name                                                         | `llama3`                 | Local LLM for entity detection                                                                     |
+| `ollamaBaseUrl`    | URL                                                                           | `http://localhost:11434` | Ollama API endpoint                                                                                |
+| `autoUnmask`       | `true` \| `false`                                                             | `false`                  | Report the preferred unmask behavior to clients; this server does not intercept responses          |
+| `strictValidation` | `true` \| `false`                                                             | `true`                   | Enable checksum / format validation (SSN area check, Luhn for cards, PESEL checksum)               |
+| `sensitivity`      | `balanced` \| `strict` \| `paranoid`                                          | `balanced`               | How much confidence a match needs before it is masked                                              |
+| `extraLocales`     | `string[]`                                                                    | `[]`                     | Further locale packs to run alongside `lang`, e.g. `["de", "it"]`. Redundant while `lang` is `all` |
+| `customLiterals`   | `string[]`                                                                    | `[]`                     | Specific strings always redacted regardless of engine (names, IDs, phone numbers)                  |
+
+### Locale coverage is fail-closed
+
+**Every locale pack runs unless you name one.** `lang` defaults to `all`, so a
+fresh server recognises Polish, US, German, Italian, Spanish, French, Dutch,
+Czech/Slovak, Swedish, Finnish and UK identifiers at once.
+
+This is deliberate. A server narrowed to one pack is indistinguishable from a
+complete one at the call site: it returns clean-looking text and reports
+success while every identifier from every other country passes through
+untouched. A pack that fires on an order number costs an unnecessary token; a
+pack that stays dormant over a PESEL costs an incident.
+
+Anything that does not name a real pack — a typo, an empty string, `all` —
+turns every pack on. Narrowing only ever happens because you asked for it, and
+when it does the server says so on stderr at startup **and** in every
+`mask_text` response (`disabled_locales`, `locale_warning`).
+
+**What it costs.** Running twelve packs at once means testing twelve national
+hypotheses against every number, so shapes that are unremarkable in one country
+get masked in another:
+
+| Input             | Masked as            | Because                             |
+| ----------------- | -------------------- | ----------------------------------- |
+| `123456789`       | `PHONE`              | valid Polish 9-digit numbering plan |
+| `045678/2024`     | `CZ_SK_BIRTH_NUMBER` | rodné číslo shape                   |
+| `AB123456C`       | `UK_NINO`            | National Insurance shape            |
+| `123456789012345` | `FR_NIR`             | 15 digits opening with 1 or 2       |
+
+If your documents are single-jurisdiction and those tokens are noise, narrow
+the server on purpose — `--lang en`, `--lang pl --extra-locales de,it` — and
+accept that identifiers from the packs you dropped will not be detected.
+
+### Where the config file is read from
+
+`mcp-config.json` is looked up in the server's **working directory**, which for
+an MCP-spawned process is the client's working directory, not the installed
+package. The copy shipped inside the npm package is an example; it is never
+loaded. Pass `--config /path/to/mcp-config.json` when you need a specific file.
+
+Settings layer highest-to-lowest: **CLI flags → `mcp-config.json` → built-in
+defaults**. Only flags you actually type count as CLI input, so a config file
+still decides everything you left off the command line.
 
 ### CLI flags
 
@@ -344,17 +400,17 @@ All config keys can be overridden at startup (highest priority):
 pseudonym-mcp --lang pl --extra-locales de,it --sensitivity strict --engines regex
 ```
 
-| Flag                | Description                                                                                                      |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `--lang`            | Language for regex rules: `en`, `pl`, `de`, `it`, `es`, `fr`, `nl`, `cz`, `sk`, `se`, `fi`, `uk` (default: `en`) |
-| `--engines`         | `regex`, `llm`, or `hybrid` (default: `hybrid`)                                                                  |
-| `--ollama-model`    | Ollama model to use for NER                                                                                      |
-| `--ollama-base-url` | Ollama base URL                                                                                                  |
-| `--sensitivity`     | `balanced`, `strict`, or `paranoid` (default: `balanced`)                                                        |
-| `--extra-locales`   | Comma-separated locales to recognize alongside `--lang`, e.g. `de,it`                                            |
-| `--config`          | Path to a custom JSON config file                                                                                |
-| `--auto-unmask`     | Set `auto_unmask: true` in `mask_text` output for clients that honor it                                          |
-| `--custom-literals` | Comma-separated strings to always redact, e.g. `"Jan Kowalski,78091512345"`                                      |
+| Flag                | Description                                                                                                                 |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `--lang`            | Locale pack for regex rules: `all`, `en`, `pl`, `de`, `it`, `es`, `fr`, `nl`, `cz`, `sk`, `se`, `fi`, `uk` (default: `all`) |
+| `--engines`         | `regex`, `llm`, or `hybrid` (default: `hybrid`)                                                                             |
+| `--ollama-model`    | Ollama model to use for NER                                                                                                 |
+| `--ollama-base-url` | Ollama base URL                                                                                                             |
+| `--sensitivity`     | `balanced`, `strict`, or `paranoid` (default: `balanced`)                                                                   |
+| `--extra-locales`   | Comma-separated locales to recognize alongside `--lang`, e.g. `de,it`                                                       |
+| `--config`          | Path to a custom JSON config file                                                                                           |
+| `--auto-unmask`     | Set `auto_unmask: true` in `mask_text` output for clients that honor it                                                     |
+| `--custom-literals` | Comma-separated strings to always redact, e.g. `"Jan Kowalski,78091512345"`                                                 |
 
 ### Claude Code
 
@@ -399,6 +455,8 @@ Add to `~/.cursor/mcp.json`:
 </p>
 
 Detection is best-effort. The patterns below are what the tool **looks for** — not a guarantee of what it will always catch. See [Limitations](#limitations) for known gaps.
+
+Every table below is active on the default configuration. `--lang` switches packs off; see [Locale coverage is fail-closed](#locale-coverage-is-fail-closed).
 
 ### Custom literals
 
@@ -449,7 +507,7 @@ Rules marked ✓ below verify a real check digit.
 | `URL`           | Web address                                             |                      |
 | `DATE`          | Calendar date — masked when it reads as a date of birth |                      |
 
-### Polish (`--lang pl`)
+### Polish (`pl` pack)
 
 | Tag           | Detection                                        | Checksum |
 | ------------- | ------------------------------------------------ | -------- |
@@ -464,7 +522,7 @@ Rules marked ✓ below verify a real check digit.
 | `PHONE`       | `+48` / `0048`, mobile, landline                 |          |
 | `POSTAL_CODE` | `XX-XXX`                                         |          |
 
-### United States (`--lang en`)
+### United States (`en` pack)
 
 | Tag              | Detection                                                 | Checksum          |
 | ---------------- | --------------------------------------------------------- | ----------------- |
@@ -479,9 +537,9 @@ Rules marked ✓ below verify a real check digit.
 
 ### Other European locales
 
-Enable them with `--lang`, or alongside another language with
-`--extra-locales de,it` — a Polish invoice carries German and Italian
-identifiers too.
+These run by default like every other pack. Narrow to a subset with `--lang`,
+or pair a chosen language with its neighbours using `--extra-locales de,it` —
+a Polish invoice carries German and Italian identifiers too.
 
 | Locale    | Tag                  | Detection                   | Checksum   |
 | --------- | -------------------- | --------------------------- | ---------- |
@@ -561,6 +619,7 @@ pseudonym-mcp is a technical privacy control, not a legal guarantee of complianc
 
 - **Detection is best-effort.** False negatives and false positives are both possible. Indirect references (e.g. _"the tall guy from accounting"_, _"my landlord"_, _"the place near the bridge"_) are not detected. Nicknames, initials, and partial names are typically missed.
 - **Structure still travels.** Amounts, relationships between tokens, narrative content, and any PII the detector missed all reach the cloud LLM. Dates are masked only when they read as a date of birth, or at higher `--sensitivity`; the rest of the calendar goes through. Tokenisation hides _who_, not _what kind of situation_.
+- **Narrowing `--lang` narrows detection, silently at the source.** With a locale pack switched off, its identifiers are not looked for at all — the output looks clean and the call still reports success. The server states which packs are off, on stderr and in every `mask_text` response; nothing downstream forces you to read it.
 - **Pre-mask logging is your problem.** If your application logs plaintext before passing it to `mask_text`, this tool cannot help you.
 - **Process-local mapping.** Restarting the server ends the session and discards mappings. This is intentional.
 - **Re-identification is possible** for anyone with access to the local mapping store, and may be possible from context alone for anyone with side knowledge. This is pseudonymisation under GDPR Art. 4(5), not anonymisation.
@@ -601,7 +660,7 @@ export const regonRule: PatternRule = {
 ```
 
 2. Register it in the `allPatterns` array in `src/patterns/index.ts`. That is the only wiring — rule sets are derived from the registry by locale, so nothing else needs to know the rule exists.
-3. For a brand-new language, add the locale to `SupportedLocale` in `src/patterns/types.ts` and the ISO 639-3 → short code mapping in `src/language/language-map.ts`.
+3. For a brand-new language, add the locale to **both** `SupportedLocale` and `SUPPORTED_LOCALES` in `src/patterns/types.ts` — the default selection loads the list, so a pack missing from it never runs — plus the ISO 639-3 → short code mapping in `src/language/language-map.ts`. `tests/default-coverage.test.ts` fails if the two drift apart, and expects one specimen per pack.
 
 Picking a score: start low and let evidence do the work. A shape that only appears as this entity (`ABC123456`, a codice fiscale) can start near 0.5. A run of digits that could be anything starts at 0.15–0.25 and relies on `validate` or on `context` to clear the bar.
 

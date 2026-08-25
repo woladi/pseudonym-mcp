@@ -4,7 +4,9 @@ import { pseudonymizeTaskMessage, privacyScanFileMessage } from '../src/mcp/prom
 
 beforeEach(() => {
   ConfigManager.reset()
-  ConfigManager.init({})
+  // Explicit: these assertions are about the prompt text, not about whatever
+  // mcp-config.json happens to sit in the working directory.
+  ConfigManager.init({ lang: 'pl' })
 })
 
 afterEach(() => {
@@ -25,7 +27,7 @@ describe('pseudonymizeTaskMessage', () => {
 
   it('uses config lang when lang arg is omitted', () => {
     const msg = pseudonymizeTaskMessage({ text: 'x', task: 'y' })
-    expect(msg).toContain('lang: pl') // default config lang
+    expect(msg).toContain('lang: pl') // config lang set in beforeEach
   })
 
   it('overrides lang when provided', () => {
