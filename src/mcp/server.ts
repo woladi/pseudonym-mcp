@@ -5,6 +5,8 @@ import { Engine, type NerStatus } from '../core/engine.js'
 import { OllamaClient } from '../core/ollama-client.js'
 import { MappingStore } from '../core/mapping-store.js'
 import { ConfigManager } from '../config/manager.js'
+import { localeBanner, localeWarning } from '../config/locale-report.js'
+import { resolveLocales } from '../patterns/types.js'
 import { pseudonymizeTaskMessage, privacyScanFileMessage } from './prompts.js'
 import { APP_VERSION } from '../version.js'
 
@@ -37,9 +39,13 @@ export function createMcpServer(): McpServer {
     'mask_text',
     `Pseudonymize sensitive entities in text before sending to a cloud LLM.
 
-Replaces PESEL numbers, phone numbers, IBANs, and email addresses via regex,
-and person names and organization names via local Ollama NER — with opaque
-tokens like [PESEL:1], [PERSON:2], [ORG:1].
+Replaces national ID numbers, tax IDs, phone numbers, IBANs, cards and email
+addresses via regex, and person names and organization names via local Ollama
+NER — with opaque tokens like [PESEL:1], [PERSON:2], [ORG:1].
+
+Every locale pack runs by default. The response reports active_locales, and
+disabled_locales plus a locale_warning whenever the server was narrowed with
+--lang and can therefore miss identifiers from other countries.
 
 Returns the masked text plus a session_id. Store the session_id to restore
 the original values later using unmask_text.`,
@@ -94,13 +100,21 @@ the original values later using unmask_text.`,
       }
 
       const warning = NER_WARNING[nerStatus]
+      const locales = resolveLocales(cfg.lang, cfg.extraLocales)
       const responseBody: Record<string, unknown> = {
         session_id: sid,
         masked_text: maskedText,
         auto_unmask: cfg.autoUnmask,
         ner_status: nerStatus,
+        active_locales: locales.active,
       }
       if (warning) responseBody['ner_warning'] = warning
+      // A narrowed server looks identical to a complete one from the caller's
+      // side — every call says which packs are off and what they would catch.
+      if (locales.disabled.length > 0) {
+        responseBody['disabled_locales'] = locales.disabled
+        responseBody['locale_warning'] = localeWarning(locales)
+      }
 
       return {
         content: [
@@ -205,6 +219,10 @@ export async function startServer(): Promise<void> {
   // Task 3: fire-and-forget warm-up — forces the Ollama model to load into RAM
   // so it is ready before the first real mask_text request arrives.
   const cfg = ConfigManager.getInstance().get()
+
+  // Say out loud which national identifiers this process can and cannot see.
+  process.stderr.write(localeBanner(resolveLocales(cfg.lang, cfg.extraLocales)))
+
   if (cfg.engines === 'hybrid' || cfg.engines === 'llm') {
     const warmUpClient = new OllamaClient({ baseUrl: cfg.ollamaBaseUrl, model: cfg.ollamaModel })
     warmUpClient.warmUp()

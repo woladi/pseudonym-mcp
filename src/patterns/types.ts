@@ -28,6 +28,77 @@ export type SupportedLocale =
   | 'fi'
   | 'uk'
 
+/**
+ * Every locale some rule covers. Kept in step with `allPatterns` by a test
+ * rather than by discipline — a new pack that is not listed here would never
+ * be loaded by the default selection, which is the failure this list exists
+ * to prevent.
+ */
+export const SUPPORTED_LOCALES: SupportedLocale[] = [
+  'pl',
+  'en',
+  'de',
+  'it',
+  'es',
+  'fr',
+  'nl',
+  'cz',
+  'sk',
+  'se',
+  'fi',
+  'uk',
+]
+
+/**
+ * Sentinel `lang` value meaning "load every locale pack".
+ *
+ * It is the default because selecting a single pack fails open: a Polish
+ * document processed with the English pack loses its PESEL, NIP and phone
+ * number silently, and the server still reports success. Recognizing an
+ * identifier that turns out to be an order number costs an unnecessary token;
+ * missing a national ID costs an incident.
+ */
+export const ALL_LOCALES = 'all'
+
+/** Which locale packs a given configuration turns on, and what that leaves off. */
+export interface LocaleSelection {
+  /** Packs that will run. */
+  active: SupportedLocale[]
+  /** Packs that will not run — empty when every pack is active. */
+  disabled: SupportedLocale[]
+  /** Requested values naming no known pack. Ignored, but worth reporting. */
+  unknown: string[]
+  /** True when every pack is active. */
+  all: boolean
+}
+
+/**
+ * Turn a configured `lang` (plus any `extraLocales`) into the set of packs to
+ * run. Anything that does not resolve to at least one known pack — the `all`
+ * sentinel, a typo, an empty string — turns every pack on. Narrowing coverage
+ * is only ever the result of naming a locale that exists.
+ */
+export function resolveLocales(lang: string, extraLocales: string[] = []): LocaleSelection {
+  const known = new Set<string>(SUPPORTED_LOCALES)
+  const requested = [lang, ...extraLocales]
+    .map((value) =>
+      String(value ?? '')
+        .trim()
+        .toLowerCase(),
+    )
+    .filter(Boolean)
+
+  const wantsAll = requested.includes(ALL_LOCALES)
+  const unknown = requested.filter((l) => l !== ALL_LOCALES && !known.has(l))
+  const named = requested.filter((l): l is SupportedLocale => known.has(l))
+
+  const all = wantsAll || named.length === 0
+  const active = all ? [...SUPPORTED_LOCALES] : SUPPORTED_LOCALES.filter((l) => named.includes(l))
+  const disabled = SUPPORTED_LOCALES.filter((l) => !active.includes(l))
+
+  return { active, disabled, unknown, all }
+}
+
 /** Minimum score a candidate needs at each sensitivity level. */
 export const ENGINE_THRESHOLDS: Record<EngineLevel, number> = {
   balanced: 0.5,
@@ -107,18 +178,23 @@ export function maxScore(rule: PatternRule): number {
 }
 
 /**
- * Rules that apply to a locale: that locale's own first, then the global ones.
- * Order does not affect matching (every candidate is scored), but keeping the
- * specific rules first makes diagnostics and lookups predictable.
+ * Rules that apply to a set of locales: the locale-specific ones first, then
+ * the global ones. Order does not affect matching (every candidate is scored),
+ * but keeping the specific rules first makes diagnostics and lookups predictable.
  */
+export function rulesForLocales(rules: PatternRule[], locales: string[]): PatternRule[] {
+  const wanted = new Set(locales)
+  const applies = (r: PatternRule) => r.locales !== null && r.locales.some((l) => wanted.has(l))
+  return [...rules.filter(applies), ...rules.filter((r) => r.locales === null)]
+}
+
+/** Rules that apply to one locale, plus any extras. */
 export function rulesForLocale(
   rules: PatternRule[],
   locale: string,
   extraLocales: string[] = [],
 ): PatternRule[] {
-  const wanted = new Set([locale, ...extraLocales])
-  const applies = (r: PatternRule) => r.locales !== null && r.locales.some((l) => wanted.has(l))
-  return [...rules.filter(applies), ...rules.filter((r) => r.locales === null)]
+  return rulesForLocales(rules, [locale, ...extraLocales])
 }
 
 /** Rules strong enough to fire at the given sensitivity level. */
