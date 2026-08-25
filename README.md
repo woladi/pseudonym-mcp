@@ -105,8 +105,9 @@ Your App / Claude Desktop
 ┌─────────────────────────┐
 │      pseudonym-mcp      │
 │                         │
-│  Phase 1: Regex NER     │  ← SSN, CREDIT_CARD, EMAIL, PHONE (en)
-│                         │  ← PESEL, IBAN, EMAIL, PHONE, NIP (pl)
+│  Phase 1: Pattern NER   │  ← 46 rules: national IDs, tax numbers,
+│                         │    IBAN, VAT, cards, wallets, devices
+│                         │    scored, checksum-verified, context-aware
 │  Phase 2: Ollama NER    │  ← PERSON, ORG  (local LLM)
 │  MappingStore (session) │  ← [TAG:N] ↔ original value
 └────────────┬────────────┘
@@ -143,6 +144,8 @@ Polish (--lang pl):
 [PERSON:1]       Jan Kowalski
 [PESEL:1]        90010112318
 [ORG:1]          Auto-Lux
+[NIP:1]          526-000-00-05
+[REGON:1]        123456785
 [IBAN:1]         PL27114020040000300201355387
 [EMAIL:1]        jan@example.pl
 [PHONE:1]        +48 123 456 789
@@ -545,7 +548,7 @@ What this does **not** guarantee:
 pseudonym-mcp is a technical privacy control, not a legal guarantee of compliance.
 
 - **Detection is best-effort.** False negatives and false positives are both possible. Indirect references (e.g. _"the tall guy from accounting"_, _"my landlord"_, _"the place near the bridge"_) are not detected. Nicknames, initials, and partial names are typically missed.
-- **Structure still travels.** Dates, amounts, relationships between tokens, narrative content, and any PII the detector missed all reach the cloud LLM. Tokenisation hides _who_, not _what kind of situation_.
+- **Structure still travels.** Amounts, relationships between tokens, narrative content, and any PII the detector missed all reach the cloud LLM. Dates are masked only when they read as a date of birth, or at higher `--sensitivity`; the rest of the calendar goes through. Tokenisation hides _who_, not _what kind of situation_.
 - **Pre-mask logging is your problem.** If your application logs plaintext before passing it to `mask_text`, this tool cannot help you.
 - **Process-local mapping.** Restarting the server ends the session and discards mappings. This is intentional.
 - **Re-identification is possible** for anyone with access to the local mapping store, and may be possible from context alone for anyone with side knowledge. This is pseudonymisation under GDPR Art. 4(5), not anonymisation.
@@ -565,15 +568,34 @@ npm test         # vitest (no Ollama required)
 
 The test suite runs fully offline — Ollama calls are injected via constructor and mocked in all tests. No live LLM required.
 
-### Adding a new language pack
+### Adding a recognizer
 
-1. Add locale-specific patterns in `src/patterns/locale/<lang>/` — each file exports a `PatternRule` with `id`, `entityType`, `pattern`, `locales`, `engines`, and optional `validate`
-2. Register them in `src/patterns/index.ts` (add to `allPatterns` array)
-3. Create a thin adapter `src/languages/<lang>/rules.ts` that composes from the new patterns using `toPatternDef`
-4. Register the adapter in `LANGUAGE_MAP` in `src/core/engine.ts`
-5. Add the ISO 639-3 → short code mapping in `src/language/language-map.ts`
+1. Add a file under `src/patterns/locale/<lang>/` (or `src/patterns/global/` if it is language-independent) exporting a `PatternRule`:
 
-See `src/patterns/locale/pl/` and `src/languages/pl/rules.ts` for a complete example.
+```ts
+export const regonRule: PatternRule = {
+  id: 'pl.regon',
+  entityType: 'REGON',
+  patterns: [
+    { name: 'REGON (14 digits)', regex: /\b\d{14}\b/g, score: 0.25 },
+    { name: 'REGON (9 digits)', regex: /\b\d{9}\b/g, score: 0.15 },
+  ],
+  locales: ['pl'],
+  context: ['regon', 'nr regon', 'gus'],
+  description: 'Polish business register number',
+  validate: regonChecksum,
+  checksumMode: 'boost',
+}
+```
+
+2. Register it in the `allPatterns` array in `src/patterns/index.ts`. That is the only wiring — rule sets are derived from the registry by locale, so nothing else needs to know the rule exists.
+3. For a brand-new language, add the locale to `SupportedLocale` in `src/patterns/types.ts` and the ISO 639-3 → short code mapping in `src/language/language-map.ts`.
+
+Picking a score: start low and let evidence do the work. A shape that only appears as this entity (`ABC123456`, a codice fiscale) can start near 0.5. A run of digits that could be anything starts at 0.15–0.25 and relies on `validate` or on `context` to clear the bar.
+
+Picking a `checksumMode`: `filter` when a failed check means it was never this entity (Luhn on a card), `boost` when it means a typo and a miss would leak data (PESEL, IBAN), `gate` when the check only rules out impossible values without confirming anything (US SSN ranges).
+
+See `src/patterns/locale/pl/` for worked examples of all three.
 
 ## Contributing
 
