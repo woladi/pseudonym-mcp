@@ -133,6 +133,12 @@ jobs:
       # Fail loudly rather than point the registry at something npm does not
       # have — either because the manifest is stale, or because a manual re-run
       # was fired before the matching npm publish landed.
+      #
+      # The server.json check is immediate: waiting cannot fix a stale manifest.
+      # The npm lookup is retried, because it can: npm's read replicas lag a
+      # successful publish by tens of seconds, and on 0.9.0 that lag turned a
+      # healthy release red (run 32844937782 — `404 No match found for version
+      # 0.9.0` moments after `changeset publish` succeeded).
       - name: Verify server.json matches a published npm version
         env:
           VERSION: ${{ steps.target.outputs.version }}
@@ -147,7 +153,21 @@ jobs:
             }
             console.log(`server.json is in sync at ${v}`);
           '
-          npm view "pseudonym-mcp@$VERSION" version
+          # ~6 attempts, 10s apart — a little over a minute of grace before we
+          # conclude the version genuinely is not on npm.
+          ATTEMPTS=6
+          for attempt in $(seq 1 "$ATTEMPTS"); do
+            if npm view "pseudonym-mcp@$VERSION" version; then
+              echo "npm has pseudonym-mcp@$VERSION"
+              exit 0
+            fi
+            if [ "$attempt" -lt "$ATTEMPTS" ]; then
+              echo "npm does not report $VERSION yet (attempt $attempt/$ATTEMPTS) — waiting 10s for the registry to catch up"
+              sleep 10
+            fi
+          done
+          echo "pseudonym-mcp@$VERSION is still not on npm after $ATTEMPTS attempts — refusing to point the registry at a version npm does not have"
+          exit 1
 
       - name: Install mcp-publisher
         run: |
