@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.1
+
+### Patch Changes
+
+- ca5ad9a: Log Ollama NER failures once per request instead of once per chunk. When Ollama is unavailable, a long text produced one stderr line per chunk, flooding the MCP client's log with the same "Connection refused". The fallback behaviour is unchanged — regex still runs and `ner_status` is still reported — only the log is now a single summary line with the chunk count and the first error.
+- 39e637e: Number tokens in document order. Substitutions run right-to-left so offsets stay valid, which also allocated `[TAG:N]` counters back-to-front: the second IBAN in a text became `[IBAN:1]`. Tokens are now allocated in document order before the right-to-left rewrite, so `[IBAN:1]` is the first IBAN a reader (or the downstream LLM) meets.
+
 ## 0.9.0
 
 ### Minor Changes
