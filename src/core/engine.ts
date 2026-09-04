@@ -209,6 +209,8 @@ export class Engine {
     const allEntities: OllamaEntity[] = []
     let anySucceeded = false
     let anyTimeout = false
+    let failedChunks = 0
+    let firstError = ''
 
     for (let i = 0; i < chunks.length; i++) {
       let chunkEntities: OllamaEntity[]
@@ -223,9 +225,10 @@ export class Engine {
         if (err instanceof Error && err.name === 'AbortError') {
           anyTimeout = true
         }
-        process.stderr.write(
-          `[pseudonym-mcp] Ollama NER failed on chunk ${i + 1}/${chunks.length} (skipping): ${String(err)}\n`,
-        )
+        // One line per request, not per chunk: a long text is dozens of
+        // chunks and Ollama is either there or it isn't.
+        failedChunks++
+        if (firstError === '') firstError = String(err)
         continue
       }
 
@@ -237,6 +240,12 @@ export class Engine {
           allEntities.push(entity)
         }
       }
+    }
+
+    if (failedChunks > 0) {
+      process.stderr.write(
+        `[pseudonym-mcp] Ollama NER skipped ${failedChunks}/${chunks.length} chunk(s): ${firstError}\n`,
+      )
     }
 
     // Determine NER status based on what happened

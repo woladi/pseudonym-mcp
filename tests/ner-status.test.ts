@@ -153,3 +153,59 @@ describe('OllamaClient.isModelReady + warmUp', () => {
     expect(() => client.warmUp()).not.toThrow()
   })
 })
+
+describe('Ollama failure logging', () => {
+  it('writes one stderr line per request, not one per chunk', async () => {
+    ConfigManager.init({ lang: 'pl', engines: 'hybrid' })
+
+    const mockOllamaClient = {
+      extractEntities: async () => {
+        throw new Error('Connection refused')
+      },
+    } as unknown as OllamaClient
+
+    const lines: string[] = []
+    const original = process.stderr.write.bind(process.stderr)
+    process.stderr.write = ((chunk: string | Uint8Array) => {
+      lines.push(String(chunk))
+      return true
+    }) as typeof process.stderr.write
+
+    try {
+      const long = 'Sprawa dotyczy Jana Kowalskiego z Warszawy. '.repeat(120)
+      const engine = new Engine(new MappingStore(), mockOllamaClient)
+      const { nerStatus } = await engine.processWithStatus(long)
+      expect(nerStatus).toBe('disabled')
+    } finally {
+      process.stderr.write = original
+    }
+
+    const nerLines = lines.filter((l) => l.includes('Ollama NER'))
+    expect(nerLines).toHaveLength(1)
+    expect(nerLines[0]).toContain('Connection refused')
+  })
+
+  it('stays silent when every chunk succeeds', async () => {
+    ConfigManager.init({ lang: 'pl', engines: 'hybrid' })
+
+    const mockOllamaClient = {
+      extractEntities: async () => [],
+    } as unknown as OllamaClient
+
+    const lines: string[] = []
+    const original = process.stderr.write.bind(process.stderr)
+    process.stderr.write = ((chunk: string | Uint8Array) => {
+      lines.push(String(chunk))
+      return true
+    }) as typeof process.stderr.write
+
+    try {
+      const engine = new Engine(new MappingStore(), mockOllamaClient)
+      await engine.processWithStatus('Krótki tekst bez encji.')
+    } finally {
+      process.stderr.write = original
+    }
+
+    expect(lines.filter((l) => l.includes('Ollama NER'))).toHaveLength(0)
+  })
+})
