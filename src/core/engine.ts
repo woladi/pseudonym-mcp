@@ -154,10 +154,18 @@ export class Engine {
   ): string {
     const candidates = findCandidates(text, rules.patterns, { level, strictValidation })
 
+    // Tokens are allocated in document order so [IBAN:1] is the first IBAN a
+    // reader (or the downstream LLM) meets in the text, ...
+    const tokens = candidates.map((candidate) =>
+      this.store.add(candidate.entityType, candidate.text),
+    )
+
+    // ... but the substitutions themselves still run right-to-left so earlier
+    // offsets stay valid while the string grows or shrinks.
     let result = text
-    for (const candidate of [...candidates].reverse()) {
-      const token = this.store.add(candidate.entityType, candidate.text)
-      result = result.slice(0, candidate.start) + token + result.slice(candidate.end)
+    for (let i = candidates.length - 1; i >= 0; i--) {
+      const candidate = candidates[i]
+      result = result.slice(0, candidate.start) + tokens[i] + result.slice(candidate.end)
     }
 
     return result
