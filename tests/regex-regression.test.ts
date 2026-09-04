@@ -102,3 +102,42 @@ describe('Regex regression test — all patterns must work', () => {
     expect(nerStatus).toBe('disabled') // engines=regex, no Ollama
   })
 })
+
+describe('Token numbering follows document order', () => {
+  it('numbers same-type entities in the order they appear in the text', async () => {
+    ConfigManager.init({ lang: 'all', engines: 'regex' })
+    const engine = new Engine(new MappingStore(), null)
+
+    const input =
+      'First IBAN PL61109010140000071219812874, second IBAN DE89370400440532013000.'
+    const result = await engine.process(input)
+
+    expect(result).toBe('First IBAN [IBAN:1], second IBAN [IBAN:2].')
+  })
+
+  it('keeps per-type counters independent while staying in document order', async () => {
+    ConfigManager.init({ lang: 'all', engines: 'regex' })
+    const engine = new Engine(new MappingStore(), null)
+
+    const input = 'a@x.com, PL61109010140000071219812874, b@x.com, DE89370400440532013000'
+    const result = await engine.process(input)
+
+    expect(result).toBe('[EMAIL:1], [IBAN:1], [EMAIL:2], [IBAN:2]')
+  })
+
+  it('round-trips masked text back to the original', async () => {
+    ConfigManager.init({ lang: 'all', engines: 'regex' })
+    const store = new MappingStore()
+    const engine = new Engine(store, null)
+
+    const input =
+      'First IBAN PL61109010140000071219812874, second IBAN DE89370400440532013000.'
+    const masked = await engine.process(input)
+
+    let restored = masked
+    for (const [token, original] of store.getAll()) {
+      restored = restored.split(token).join(original)
+    }
+    expect(restored).toBe(input)
+  })
+})
